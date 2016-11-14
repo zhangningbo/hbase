@@ -41,6 +41,7 @@ import org.apache.hadoop.hbase.MetaTableAccessor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.RegionLocator;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.master.RegionState.State;
@@ -98,7 +99,7 @@ public class TestMasterFailover {
 
     // Start the cluster
     HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
-
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
 
@@ -205,6 +206,7 @@ public class TestMasterFailover {
 
     // Start the cluster
     HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility(conf);
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     log("Cluster started");
@@ -238,9 +240,9 @@ public class TestMasterFailover {
 
     log("Regions in hbase:meta and namespace have been created");
 
-    // at this point we only expect 3 regions to be assigned out
-    // (catalogs and namespace, + 1 online region)
-    assertEquals(3, cluster.countServedRegions());
+    // at this point we expect at least 3 regions to be assigned out
+    // (meta and namespace, + 1 online region)
+    assertTrue(3 <= cluster.countServedRegions());
     HRegionInfo hriOnline = null;
     try (RegionLocator locator =
         TEST_UTIL.getConnection().getRegionLocator(TableName.valueOf("onlineTable"))) {
@@ -333,6 +335,7 @@ public class TestMasterFailover {
 
     // Start the cluster
     HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     log("Cluster started");

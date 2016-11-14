@@ -52,7 +52,7 @@ public class ZKProcedureCoordinatorRpcs implements ProcedureCoordinatorRpcs {
    * @throws KeeperException if an unexpected zk error occurs
    */
   public ZKProcedureCoordinatorRpcs(ZooKeeperWatcher watcher,
-      String procedureClass, String coordName) throws KeeperException {
+      String procedureClass, String coordName) throws IOException {
     this.watcher = watcher;
     this.procedureType = procedureClass;
     this.coordName = coordName;
@@ -179,6 +179,7 @@ public class ZKProcedureCoordinatorRpcs implements ProcedureCoordinatorRpcs {
    * Start monitoring znodes in ZK - subclass hook to start monitoring znodes they are about.
    * @return true if succeed, false if encountered initialization errors.
    */
+  @Override
   final public boolean start(final ProcedureCoordinator coordinator) {
     if (this.coordinator != null) {
       throw new IllegalStateException(

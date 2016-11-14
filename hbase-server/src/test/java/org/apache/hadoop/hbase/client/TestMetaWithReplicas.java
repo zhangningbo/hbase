@@ -29,7 +29,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -45,6 +44,7 @@ import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.Waiter;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.regionserver.StorefileRefresherChore;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
@@ -64,6 +64,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Tests the scenarios where replicas are enabled for the meta table
  */
@@ -82,7 +84,11 @@ public class TestMetaWithReplicas {
     TEST_UTIL.getConfiguration().setInt(HConstants.META_REPLICAS_NUM, 3);
     TEST_UTIL.getConfiguration().setInt(
         StorefileRefresherChore.REGIONSERVER_STOREFILE_REFRESH_PERIOD, 1000);
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(3);
+
+    TEST_UTIL.waitUntilAllSystemRegionsAssigned();
+
     // disable the balancer
     LoadBalancerTracker l = new LoadBalancerTracker(TEST_UTIL.getZooKeeperWatcher(),
         new Abortable() {

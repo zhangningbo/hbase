@@ -17,11 +17,41 @@
  */
 package org.apache.hadoop.hbase.regionserver;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
-import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.CategoryBasedTimeout;
+import org.apache.hadoop.hbase.CompatibilityFactory;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.HRegionLocation;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.NamespaceDescriptor;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Append;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Durability;
+import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.Increment;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.RegionLocator;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.test.MetricsAssertHelper;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
 import org.apache.hadoop.hbase.testclassification.RegionServerTests;
@@ -40,12 +70,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.junit.rules.TestRule;
-
-import static org.junit.Assert.*;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 @Category({RegionServerTests.class, LargeTests.class})
 public class TestRegionServerMetrics {
@@ -81,6 +105,7 @@ public class TestRegionServerMetrics {
   public static void startCluster() throws Exception {
     metricsHelper = CompatibilityFactory.getInstance(MetricsAssertHelper.class);
     TEST_UTIL = new HBaseTestingUtility();
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     conf = TEST_UTIL.getConfiguration();
     conf.getLong("hbase.splitlog.max.resubmit", 0);
     // Make the failure test faster
@@ -99,6 +124,7 @@ public class TestRegionServerMetrics {
     while (cluster.getLiveRegionServerThreads().size() < 1) {
       Threads.sleep(100);
     }
+    TEST_UTIL.waitUntilAllSystemRegionsAssigned();
 
     rs = cluster.getRegionServer(0);
     metricsRegionServer = rs.getRegionServerMetrics();
@@ -198,7 +224,7 @@ public class TestRegionServerMetrics {
 
   @Test
   public void testRegionCount() throws Exception {
-    metricsHelper.assertGauge("regionCount", 1, serverSource);
+    metricsHelper.assertGauge("regionCount", 2, serverSource);
   }
 
   @Test
@@ -277,7 +303,7 @@ public class TestRegionServerMetrics {
     TEST_UTIL.getHBaseAdmin().flush(tableName);
 
     metricsRegionServer.getRegionServerWrapper().forceRecompute();
-    assertGauge("storeCount", 1);
+    assertGauge("storeCount", 3);
     assertGauge("storeFileCount", 1);
   }
 

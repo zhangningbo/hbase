@@ -17,6 +17,10 @@
  */
 package org.apache.hadoop.hbase.mapred;
 
+import static org.junit.Assert.fail;
+
+import java.io.IOException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -30,10 +34,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import java.io.IOException;
-
-import static org.junit.Assert.fail;
 
 /**
  * Spark creates many instances of TableOutputFormat within a single process.  We need to make
@@ -55,7 +55,7 @@ public class TestTableOutputFormatConnectionExhaust {
   public static void beforeClass() throws Exception {
     // Default in ZookeeperMiniCluster is 1000, setting artificially low to trigger exhaustion.
     // need min of 7 to properly start the default mini HBase cluster
-    UTIL.getConfiguration().setInt(HConstants.ZOOKEEPER_MAX_CLIENT_CNXNS, 10);
+    UTIL.getConfiguration().setInt(HConstants.ZOOKEEPER_MAX_CLIENT_CNXNS, 11);
     UTIL.startMiniCluster();
   }
 

@@ -17,15 +17,6 @@
  */
 package org.apache.hadoop.hbase.regionserver.wal;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.lmax.disruptor.BlockingWaitStrategy;
-import com.lmax.disruptor.EventHandler;
-import com.lmax.disruptor.ExceptionHandler;
-import com.lmax.disruptor.LifecycleAware;
-import com.lmax.disruptor.TimeoutException;
-import com.lmax.disruptor.dsl.Disruptor;
-import com.lmax.disruptor.dsl.ProducerType;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -65,6 +56,15 @@ import org.apache.htrace.NullScope;
 import org.apache.htrace.Span;
 import org.apache.htrace.Trace;
 import org.apache.htrace.TraceScope;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.lmax.disruptor.BlockingWaitStrategy;
+import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.ExceptionHandler;
+import com.lmax.disruptor.LifecycleAware;
+import com.lmax.disruptor.TimeoutException;
+import com.lmax.disruptor.dsl.Disruptor;
+import com.lmax.disruptor.dsl.ProducerType;
 
 /**
  * The default implementation of FSWAL.
@@ -778,6 +778,15 @@ public class FSHLog extends AbstractFSWAL<Writer> {
       assert scope == NullScope.INSTANCE || !scope.isDetached();
       scope.close();
     }
+  }
+
+  /**
+   * To support old API compatibility
+   * @return current file number (timestamp)
+   */
+  @Override
+  public long getFilenum() {
+    return filenum.get();
   }
 
   @Override

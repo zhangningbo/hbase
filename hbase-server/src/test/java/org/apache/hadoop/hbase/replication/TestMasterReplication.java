@@ -59,14 +59,13 @@ import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.apache.hadoop.hbase.regionserver.HRegion;
-import org.apache.hadoop.hbase.regionserver.HRegionServer;
-import org.apache.hadoop.hbase.regionserver.RSRpcServices;
 import org.apache.hadoop.hbase.regionserver.wal.WALActionsListener;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
 import org.apache.hadoop.hbase.replication.regionserver.TestSourceFSConfigurationProvider;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
 import org.apache.hadoop.hbase.testclassification.ReplicationTests;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.HFileTestUtil;
 import org.apache.hadoop.hbase.zookeeper.MiniZooKeeperCluster;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
@@ -74,8 +73,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import com.google.protobuf.ServiceException;
 
 @Category({ReplicationTests.class, LargeTests.class})
 public class TestMasterReplication {
@@ -172,7 +169,7 @@ public class TestMasterReplication {
    * It tests the replication scenario involving 0 -> 1 -> 0. It does it by bulk loading a set of
    * HFiles to a table in each cluster, checking if it's replicated.
    */
-  @Test(timeout = 300000)
+  @Test(timeout = 400000)
   public void testHFileCyclicReplication() throws Exception {
     LOG.info("testHFileCyclicReplication");
     int numClusters = 2;
@@ -228,7 +225,7 @@ public class TestMasterReplication {
    * originating from itself and also the edits that it received using replication from a different
    * cluster. The scenario is explained in HBASE-9158
    */
-  @Test(timeout = 300000)
+  @Test(timeout = 400000)
   public void testCyclicReplication2() throws Exception {
     LOG.info("testCyclicReplication1");
     int numClusters = 3;
@@ -332,13 +329,13 @@ public class TestMasterReplication {
       shutDownMiniClusters();
     }
   }
-  
+
   /**
    * It tests the bulk loaded hfile replication scenario to only explicitly specified table column
    * families. It does it by bulk loading a set of HFiles belonging to both the CFs of table and set
    * only one CF data to replicate.
    */
-  @Test(timeout = 300000)
+  @Test(timeout = 400000)
   public void testHFileReplicationForConfiguredTableCfs() throws Exception {
     LOG.info("testHFileReplicationForConfiguredTableCfs");
     int numClusters = 2;
@@ -392,7 +389,7 @@ public class TestMasterReplication {
   /**
    * Tests cyclic replication scenario of 0 -> 1 -> 2 -> 1.
    */
-  @Test(timeout = 300000)
+  @Test(timeout = 400000)
   public void testCyclicReplication3() throws Exception {
     LOG.info("testCyclicReplication2");
     int numClusters = 3;
@@ -452,6 +449,11 @@ public class TestMasterReplication {
       configurations[i] = conf;
       new ZooKeeperWatcher(conf, "cluster" + i, null, true);
     }
+    long start = EnvironmentEdgeManager.currentTime();
+    for (int i = 0; i < numClusters; i++) {
+      utilities[i].waitUntilAllSystemRegionsAssigned();
+    }
+    LOG.info("Spent " + (EnvironmentEdgeManager.currentTime()-start) + " ms for system tables");
   }
 
   private void shutDownMiniClusters() throws Exception {
@@ -483,7 +485,7 @@ public class TestMasterReplication {
       close(replicationAdmin);
     }
   }
-  
+
   private void addPeer(String id, int masterClusterNumber, int slaveClusterNumber, String tableCfs)
       throws Exception {
     ReplicationAdmin replicationAdmin = null;

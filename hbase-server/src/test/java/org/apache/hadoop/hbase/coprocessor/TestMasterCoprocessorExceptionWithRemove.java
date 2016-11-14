@@ -34,6 +34,7 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.master.MasterCoprocessorHost;
@@ -85,6 +86,7 @@ public class TestMasterCoprocessorExceptionWithRemove {
       // Cause a NullPointerException and don't catch it: this should cause the
       // master to throw an o.apache.hadoop.hbase.DoNotRetryIOException to the
       // client.
+      if (desc.getTableName().isSystemTable()) return;
       Integer i;
       i = null;
       i = i++;
@@ -125,6 +127,7 @@ public class TestMasterCoprocessorExceptionWithRemove {
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
     Configuration conf = UTIL.getConfiguration();
+    conf.setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     conf.set(CoprocessorHost.MASTER_COPROCESSOR_CONF_KEY,
         BuggyMasterObserver.class.getName());
     UTIL.getConfiguration().setBoolean(CoprocessorHost.ABORT_ON_ERROR_KEY, false);

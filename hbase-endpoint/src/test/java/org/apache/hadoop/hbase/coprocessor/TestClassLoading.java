@@ -18,10 +18,37 @@
  */
 package org.apache.hadoop.hbase.coprocessor;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.Coprocessor;
+import org.apache.hadoop.hbase.CoprocessorEnvironment;
+import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MiniHBaseCluster;
+import org.apache.hadoop.hbase.RegionLoad;
+import org.apache.hadoop.hbase.ServerLoad;
+import org.apache.hadoop.hbase.ServerName;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
+import org.apache.hadoop.hbase.backup.master.BackupController;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.TestServerCustomProtocol;
@@ -30,21 +57,10 @@ import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.util.ClassLoaderTestHelper;
 import org.apache.hadoop.hbase.util.CoprocessorClassLoader;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.ServerLoad;
-import org.apache.hadoop.hbase.RegionLoad;
-
-import java.io.*;
-import java.util.*;
-
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
 
 /**
  * Test coprocessors class loading.
@@ -69,6 +85,7 @@ public class TestClassLoading {
   private static Class<?> regionCoprocessor2 = TestServerCustomProtocol.PingHandler.class;
   private static Class<?> regionServerCoprocessor = SampleRegionWALObserver.class;
   private static Class<?> masterCoprocessor = BaseMasterObserver.class;
+  private static Class<?> backupCoprocessor = BackupController.class;
 
   private static final String[] regionServerSystemCoprocessors =
       new String[]{
@@ -82,7 +99,7 @@ public class TestClassLoading {
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
     Configuration conf = TEST_UTIL.getConfiguration();
-
+    conf.setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     // regionCoprocessor1 will be loaded on all regionservers, since it is
     // loaded for any tables (user or meta).
     conf.setStrings(CoprocessorHost.REGION_COPROCESSOR_CONF_KEY,
@@ -532,7 +549,7 @@ public class TestClassLoading {
     // to master: verify that the master is reporting the correct set of
     // loaded coprocessors.
     final String loadedMasterCoprocessorsVerify =
-        "[" + masterCoprocessor.getSimpleName() + "]";
+        "[" + backupCoprocessor.getSimpleName() + ", " + masterCoprocessor.getSimpleName() + "]";
     String loadedMasterCoprocessors =
         java.util.Arrays.toString(
             TEST_UTIL.getHBaseCluster().getMaster().getMasterCoprocessors());
@@ -541,7 +558,7 @@ public class TestClassLoading {
 
   @Test
   public void testFindCoprocessors() {
-    // HBASE 12277: 
+    // HBASE 12277:
     CoprocessorHost masterCpHost =
                              TEST_UTIL.getHBaseCluster().getMaster().getMasterCoprocessorHost();
 

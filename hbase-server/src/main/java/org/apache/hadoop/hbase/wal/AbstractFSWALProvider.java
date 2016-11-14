@@ -229,6 +229,11 @@ public abstract class AbstractFSWALProvider<T extends AbstractFSWAL<?>> implemen
   @VisibleForTesting
   public static long extractFileNumFromWAL(final WAL wal) {
     final Path walName = ((AbstractFSWAL<?>) wal).getCurrentFileName();
+        return extractFileNumFromWAL(walName);
+  }
+
+  @VisibleForTesting
+  public static long extractFileNumFromWAL(final Path walName) {
     if (walName == null) {
       throw new IllegalArgumentException("The WAL path couldn't be null");
     }

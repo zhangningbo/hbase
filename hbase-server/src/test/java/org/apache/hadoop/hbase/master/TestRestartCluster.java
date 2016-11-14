@@ -35,6 +35,7 @@ import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableExistsException;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
 import org.apache.hadoop.hbase.testclassification.MasterTests;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -62,6 +63,7 @@ public class TestRestartCluster {
 
   @Test (timeout=300000)
   public void testClusterRestart() throws Exception {
+    UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     UTIL.startMiniCluster(3);
     while (!UTIL.getMiniHBaseCluster().getMaster().isInitialized()) {
       Threads.sleep(1);
@@ -75,7 +77,7 @@ public class TestRestartCluster {
     }
 
     List<HRegionInfo> allRegions = MetaTableAccessor.getAllRegions(UTIL.getConnection(), false);
-    assertEquals(4, allRegions.size());
+    assertTrue(4 <= allRegions.size());
 
     LOG.info("\n\nShutting down cluster");
     UTIL.shutdownMiniHBaseCluster();
@@ -90,7 +92,7 @@ public class TestRestartCluster {
     // Otherwise we're reusing an Connection that has gone stale because
     // the shutdown of the cluster also called shut of the connection.
     allRegions = MetaTableAccessor.getAllRegions(UTIL.getConnection(), false);
-    assertEquals(4, allRegions.size());
+    assertTrue(4 <= allRegions.size());
     LOG.info("\n\nWaiting for tables to be available");
     for(TableName TABLE: TABLES) {
       try {
@@ -108,6 +110,7 @@ public class TestRestartCluster {
    */
   @Test (timeout=300000)
   public void testRetainAssignmentOnRestart() throws Exception {
+    UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     UTIL.startMiniCluster(2);
     while (!UTIL.getMiniHBaseCluster().getMaster().isInitialized()) {
       Threads.sleep(1);

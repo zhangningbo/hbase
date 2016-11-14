@@ -29,12 +29,12 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.executor.ExecutorType;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.testclassification.RegionServerTests;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -52,6 +52,7 @@ public class TestRegionOpen {
   @BeforeClass
   public static void before() throws Exception {
     HTU.startMiniCluster(NB_SERVERS);
+    HTU.waitUntilAllSystemRegionsAssigned();
   }
 
   @AfterClass
@@ -68,7 +69,7 @@ public class TestRegionOpen {
     ThreadPoolExecutor exec = getRS().getExecutorService()
         .getExecutorThreadPool(ExecutorType.RS_OPEN_PRIORITY_REGION);
 
-    assertEquals(0, exec.getCompletedTaskCount());
+    long taskCount = exec.getCompletedTaskCount(); // System table regions
 
     HTableDescriptor htd = new HTableDescriptor(tableName);
     htd.setPriority(HConstants.HIGH_QOS);
@@ -78,6 +79,6 @@ public class TestRegionOpen {
       admin.createTable(htd);
     }
 
-    assertEquals(1, exec.getCompletedTaskCount());
+    assertEquals(taskCount+1, exec.getCompletedTaskCount());
   }
 }

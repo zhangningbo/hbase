@@ -114,7 +114,7 @@ public class LoadIncrementalHFiles extends Configured implements Tool {
     = "hbase.mapreduce.bulkload.max.hfiles.perRegion.perFamily";
   private static final String ASSIGN_SEQ_IDS = "hbase.mapreduce.bulkload.assign.sequenceNumbers";
   public final static String CREATE_TABLE_CONF_KEY = "create.table";
-  public final static String SILENCE_CONF_KEY = "ignore.unmatched.families";
+  public final static String IGNORE_UNMATCHED_CF_CONF_KEY = "ignore.unmatched.families";
   public final static String ALWAYS_COPY_FILES = "always.copy.files";
 
   // We use a '.' prefix which is ignored when walking directory trees
@@ -162,7 +162,7 @@ public class LoadIncrementalHFiles extends Configured implements Tool {
     System.err.println("usage: " + NAME + " /path/to/hfileoutputformat-output tablename" + "\n -D"
         + CREATE_TABLE_CONF_KEY + "=no - can be used to avoid creation of table by this tool\n"
         + "  Note: if you set this to 'no', then the target table must already exist in HBase\n -D"
-        + SILENCE_CONF_KEY + "=yes - can be used to ignore unmatched column families\n"
+        + IGNORE_UNMATCHED_CF_CONF_KEY + "=yes - can be used to ignore unmatched column families\n"
         + "\n");
   }
 
@@ -1228,7 +1228,7 @@ public class LoadIncrementalHFiles extends Configured implements Tool {
 
       try (Table table = connection.getTable(tableName);
         RegionLocator locator = connection.getRegionLocator(tableName)) {
-        boolean silence = "yes".equalsIgnoreCase(getConf().get(SILENCE_CONF_KEY, ""));
+        boolean silence = "yes".equalsIgnoreCase(getConf().get(IGNORE_UNMATCHED_CF_CONF_KEY, ""));
         boolean copyFiles = "yes".equalsIgnoreCase(getConf().get(ALWAYS_COPY_FILES, ""));
         if (dirPath != null) {
           doBulkLoad(hfofDir, admin, table, locator, silence, copyFiles);

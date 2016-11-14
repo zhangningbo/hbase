@@ -85,15 +85,19 @@ public class TableOutputFormat extends FileOutputFormat<ImmutableBytesWritable, 
       }
     }
 
+    @Override
     public void close(Reporter reporter) throws IOException {
       if (this.m_mutator != null) {
         this.m_mutator.close();
+        this.m_mutator = null;
       }
       if (conn != null) {
         this.conn.close();
+        this.conn = null;
       }
     }
 
+    @Override
     public void write(ImmutableBytesWritable key, Put value) throws IOException {
       m_mutator.mutate(new Put(value));
     }
@@ -101,7 +105,7 @@ public class TableOutputFormat extends FileOutputFormat<ImmutableBytesWritable, 
 
   /**
    * Creates a new record writer.
-   * 
+   *
    * Be aware that the baseline javadoc gives the impression that there is a single
    * {@link RecordWriter} per job but in HBase, it is more natural if we give you a new
    * RecordWriter per call of this method. You must close the returned RecordWriter when done.

@@ -41,7 +41,7 @@ import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.TagUtil;
-import org.apache.hadoop.hbase.protobuf.generated.ZooKeeperProtos;
+import org.apache.hadoop.hbase.backup.BackupType;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Consistency;
@@ -78,6 +78,8 @@ import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.NameBytesPair;
 import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionSpecifier;
 import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionSpecifier.RegionSpecifierType;
 import org.apache.hadoop.hbase.protobuf.generated.MapReduceProtos;
+import org.apache.hadoop.hbase.protobuf.generated.ZooKeeperProtos;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.BackupProtos;
 import org.apache.hadoop.hbase.util.Addressing;
 import org.apache.hadoop.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -303,6 +305,28 @@ public final class ProtobufUtil {
    * @return the converted ServerName
    */
   public static ServerName toServerName(final HBaseProtos.ServerName proto) {
+    if (proto == null) return null;
+    String hostName = proto.getHostName();
+    long startCode = -1;
+    int port = -1;
+    if (proto.hasPort()) {
+      port = proto.getPort();
+    }
+    if (proto.hasStartCode()) {
+      startCode = proto.getStartCode();
+    }
+    return ServerName.valueOf(hostName, port, startCode);
+  }
+
+
+  /**
+   * Convert a protocol buffer ServerName to a ServerName
+   *
+   * @param proto the protocol buffer ServerName to convert
+   * @return the converted ServerName
+   */
+  public static ServerName toServerNameShaded(
+      final org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.ServerName proto) {
     if (proto == null) return null;
     String hostName = proto.getHostName();
     long startCode = -1;
@@ -1664,6 +1688,20 @@ public final class ProtobufUtil {
         .setQualifier(ByteStringer.wrap(tableName.getQualifier())).build();
   }
 
+  public static TableName toTableName(
+      org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.TableName tableNamePB) {
+    return TableName.valueOf(tableNamePB.getNamespace().asReadOnlyByteBuffer(),
+        tableNamePB.getQualifier().asReadOnlyByteBuffer());
+  }
+
+  public static org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.TableName
+    toProtoTableNameShaded(TableName tableName) {
+    return org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.TableName.newBuilder()
+        .setNamespace(org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString.copyFrom(tableName.getNamespace()))
+        .setQualifier(org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString.copyFrom(tableName.getQualifier())).build();
+  }
+
+
   /**
    * This version of protobuf's mergeFrom avoids the hard-coded 64MB limit for decoding
    * buffers when working with byte arrays
@@ -1741,6 +1779,10 @@ public final class ProtobufUtil {
     return regionBuilder.build();
   }
 
+  public static BackupProtos.BackupType toProtoBackupType(BackupType type) {
+    return BackupProtos.BackupType.valueOf(type.name());
+  }
+
   /**
    * Get a ServerName from the passed in data bytes.
    * @param data Data with a serialize server name in it; can handle the old style
@@ -1749,7 +1791,7 @@ public final class ProtobufUtil {
    * has a serialized {@link ServerName} in it.
    * @return Returns null if <code>data</code> is null else converts passed data
    * to a ServerName instance.
-   * @throws DeserializationException 
+   * @throws DeserializationException
    */
   public static ServerName toServerName(final byte [] data) throws DeserializationException {
     if (data == null || data.length <= 0) return null;

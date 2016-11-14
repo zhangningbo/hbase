@@ -38,11 +38,12 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MetaTableAccessor;
+import org.apache.hadoop.hbase.MetaTableAccessor.Visitor;
 import org.apache.hadoop.hbase.RegionLocations;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.MetaTableAccessor;
-import org.apache.hadoop.hbase.MetaTableAccessor.Visitor;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -71,12 +72,14 @@ public class TestMasterOperationsForRegionReplicas {
   public static void setupBeforeClass() throws Exception {
     conf = TEST_UTIL.getConfiguration();
     conf.setBoolean("hbase.tests.use.shortcircuit.reads", false);
+    conf.setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(numSlaves);
     CONNECTION = ConnectionFactory.createConnection(TEST_UTIL.getConfiguration());
     ADMIN = CONNECTION.getAdmin();
     while(ADMIN.getClusterStatus().getServers().size() < numSlaves) {
       Thread.sleep(100);
     }
+    TEST_UTIL.waitUntilAllSystemRegionsAssigned();
   }
 
   @AfterClass
@@ -305,7 +308,7 @@ public class TestMasterOperationsForRegionReplicas {
       connection);
     snapshot.initialize();
     Map<HRegionInfo, ServerName> regionToServerMap = snapshot.getRegionToRegionServerMap();
-    assert(regionToServerMap.size() == numRegions * numReplica + 1); //'1' for the namespace
+    assert(regionToServerMap.size() == numRegions * numReplica + 2); //'1' for the namespace
     Map<ServerName, List<HRegionInfo>> serverToRegionMap = snapshot.getRegionServerToRegionMap();
     for (Map.Entry<ServerName, List<HRegionInfo>> entry : serverToRegionMap.entrySet()) {
       if (entry.getKey().equals(util.getHBaseCluster().getMaster().getServerName())) {
@@ -332,14 +335,14 @@ public class TestMasterOperationsForRegionReplicas {
       connection);
     snapshot.initialize();
     Map<HRegionInfo, ServerName>  regionToServerMap = snapshot.getRegionToRegionServerMap();
-    assertEquals(regionToServerMap.size(), numRegions * numReplica + 1); //'1' for the namespace
+    assertEquals(regionToServerMap.size(), numRegions * numReplica + 2); //'2' for the ns, backup
     Map<ServerName, List<HRegionInfo>> serverToRegionMap = snapshot.getRegionServerToRegionMap();
     assertEquals(serverToRegionMap.keySet().size(), 2); // 1 rs + 1 master
     for (Map.Entry<ServerName, List<HRegionInfo>> entry : serverToRegionMap.entrySet()) {
       if (entry.getKey().equals(TEST_UTIL.getHBaseCluster().getMaster().getServerName())) {
         continue;
       }
-      assertEquals(entry.getValue().size(), numRegions * numReplica);
+      assertEquals(entry.getValue().size(), numRegions * numReplica +1);
     }
   }
 }

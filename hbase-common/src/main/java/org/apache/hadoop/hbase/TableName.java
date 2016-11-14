@@ -23,10 +23,10 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import org.apache.hadoop.hbase.KeyValue.KVComparator;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.KeyValue.KVComparator;
 
 /**
  * Immutable POJO class for representing a table name.
@@ -85,6 +85,10 @@ public final class TableName implements Comparable<TableName> {
   /** The Namespace table's name. */
   public static final TableName NAMESPACE_TABLE_NAME =
       valueOf(NamespaceDescriptor.SYSTEM_NAMESPACE_NAME_STR, "namespace");
+
+  /** The backup table's name. */
+  public static final TableName BACKUP_TABLE_NAME =
+      valueOf(NamespaceDescriptor.SYSTEM_NAMESPACE_NAME_STR, "backup");
 
   public static final String OLD_META_STR = ".META.";
   public static final String OLD_ROOT_STR = "-ROOT-";

@@ -67,6 +67,7 @@ import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.SplitLogCounters;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Waiter;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.ClusterConnection;
 import org.apache.hadoop.hbase.client.CompactionState;
 import org.apache.hadoop.hbase.client.ConnectionUtils;
@@ -80,7 +81,6 @@ import org.apache.hadoop.hbase.client.RegionLocator;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.coordination.BaseCoordinatedStateManager;
 import org.apache.hadoop.hbase.coordination.ZKSplitLogManagerCoordination;
 import org.apache.hadoop.hbase.exceptions.OperationConflictException;
 import org.apache.hadoop.hbase.exceptions.RegionInRecoveryException;
@@ -101,7 +101,6 @@ import org.apache.hadoop.hbase.util.JVMClusterUtil.MasterThread;
 import org.apache.hadoop.hbase.util.JVMClusterUtil.RegionServerThread;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.hbase.wal.AbstractFSWALProvider;
-import org.apache.hadoop.hbase.wal.FSHLogProvider;
 import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.hadoop.hbase.wal.WALFactory;
 import org.apache.hadoop.hbase.wal.WALSplitter;
@@ -163,6 +162,7 @@ public class TestDistributedLogSplitting {
   private void startCluster(int num_rs) throws Exception {
     SplitLogCounters.resetCounters();
     LOG.info("Starting cluster");
+    conf.setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     conf.getLong("hbase.splitlog.max.resubmit", 0);
     // Make the failure test faster
     conf.setInt("zookeeper.recovery.retry", 0);
@@ -1143,8 +1143,8 @@ public class TestDistributedLogSplitting {
       out.write(Bytes.toBytes("corrupted bytes"));
       out.close();
       ZKSplitLogManagerCoordination coordination =
-          (ZKSplitLogManagerCoordination) ((BaseCoordinatedStateManager) master
-              .getCoordinatedStateManager()).getSplitLogManagerCoordination();
+          (ZKSplitLogManagerCoordination) master
+              .getCoordinatedStateManager().getSplitLogManagerCoordination();
       coordination.setIgnoreDeleteForTesting(true);
       executor = Executors.newSingleThreadExecutor();
       Runnable runnable = new Runnable() {
@@ -1507,14 +1507,14 @@ public class TestDistributedLogSplitting {
       for (String oregion : regions)
         LOG.debug("Region still online: " + oregion);
     }
-    assertEquals(2 + existingRegions, regions.size());
+    assertTrue(2 + existingRegions <= regions.size());
     LOG.debug("Enabling table\n");
     TEST_UTIL.getHBaseAdmin().enableTable(table);
     LOG.debug("Waiting for no more RIT\n");
     blockUntilNoRIT(zkw, master);
     LOG.debug("Verifying there are " + numRegions + " assigned on cluster\n");
     regions = HBaseTestingUtility.getAllOnlineRegions(cluster);
-    assertEquals(numRegions + 2 + existingRegions, regions.size());
+    assertTrue(numRegions + 2 + existingRegions <= regions.size());
     return ht;
   }
 

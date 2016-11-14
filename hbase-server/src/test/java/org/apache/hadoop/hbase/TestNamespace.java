@@ -25,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -32,6 +33,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -63,6 +65,7 @@ public class TestNamespace {
   @BeforeClass
   public static void setUp() throws Exception {
     TEST_UTIL = new HBaseTestingUtility();
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_SLAVES_BASE);
     admin = TEST_UTIL.getHBaseAdmin();
     cluster = TEST_UTIL.getHBaseCluster();
@@ -110,13 +113,16 @@ public class TestNamespace {
     //verify existence of system tables
     Set<TableName> systemTables = Sets.newHashSet(
         TableName.META_TABLE_NAME,
-        TableName.NAMESPACE_TABLE_NAME);
+        TableName.NAMESPACE_TABLE_NAME,
+        TableName.BACKUP_TABLE_NAME);
     HTableDescriptor[] descs =
         admin.listTableDescriptorsByNamespace(NamespaceDescriptor.SYSTEM_NAMESPACE.getName());
-    assertEquals(systemTables.size(), descs.length);
+    assertTrue(descs.length >= systemTables.size());
+    Set<TableName> tables = new HashSet<>();
     for (HTableDescriptor desc : descs) {
-      assertTrue(systemTables.contains(desc.getTableName()));
+      tables.add(desc.getTableName());
     }
+    assertTrue(tables.containsAll(systemTables));
     //verify system tables aren't listed
     assertEquals(0, admin.listTables().length);
 

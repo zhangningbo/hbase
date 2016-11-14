@@ -38,6 +38,7 @@ import org.apache.hadoop.hbase.MetaTableAccessor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
@@ -93,6 +94,7 @@ public class OfflineMetaRebuildTestCore {
   public void setUpBefore() throws Exception {
     TEST_UTIL = new HBaseTestingUtility();
     TEST_UTIL.getConfiguration().setInt("dfs.datanode.max.xceivers", 9192);
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(3);
     conf = TEST_UTIL.getConfiguration();
     this.connection = ConnectionFactory.createConnection(conf);
@@ -103,7 +105,7 @@ public class OfflineMetaRebuildTestCore {
     tableIdx++;
     htbl = setupTable(table);
     populateTable(htbl);
-    assertEquals(5, scanMeta());
+    assertEquals(6, scanMeta());
     LOG.info("Table " + table + " has " + tableRowCount(conf, table)
         + " entries.");
     assertEquals(16, tableRowCount(conf, table));

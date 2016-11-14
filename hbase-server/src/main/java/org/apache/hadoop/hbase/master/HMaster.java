@@ -65,7 +65,6 @@ import org.apache.hadoop.hbase.MetaTableAccessor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.PleaseHoldException;
 import org.apache.hadoop.hbase.ProcedureInfo;
-import org.apache.hadoop.hbase.RegionStateListener;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.ServerLoad;
 import org.apache.hadoop.hbase.ServerName;
@@ -74,6 +73,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotDisabledException;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.UnknownRegionException;
+import org.apache.hadoop.hbase.backup.impl.BackupManager;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.client.MasterSwitchType;
 import org.apache.hadoop.hbase.client.Result;
@@ -413,6 +413,7 @@ public class HMaster extends HRegionServer implements MasterServices {
     this.conf.setBoolean(HConstants.USE_META_REPLICAS, false);
 
     Replication.decorateMasterConfiguration(this.conf);
+    BackupManager.decorateMasterConfiguration(this.conf);
 
     // Hack! Maps DFSClient => Master for logs.  HDFS made this
     // config param for task trackers, but we can piggyback off of it.
@@ -899,7 +900,7 @@ public class HMaster extends HRegionServer implements MasterServices {
 
   void initQuotaManager() throws IOException {
     MasterQuotaManager quotaManager = new MasterQuotaManager(this);
-    this.assignmentManager.setRegionStateListener((RegionStateListener)quotaManager);
+    this.assignmentManager.setRegionStateListener(quotaManager);
     quotaManager.start();
     this.quotaManager = quotaManager;
   }
@@ -2643,6 +2644,8 @@ public class HMaster extends HRegionServer implements MasterServices {
 
     return procInfoList;
   }
+
+
 
   /**
    * Returns the list of table descriptors that match the specified request

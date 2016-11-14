@@ -39,10 +39,8 @@ import org.apache.hadoop.hbase.master.snapshot.SnapshotManager;
 import org.apache.hadoop.hbase.procedure.MasterProcedureManagerHost;
 import org.apache.hadoop.hbase.procedure2.ProcedureExecutor;
 import org.apache.hadoop.hbase.quotas.MasterQuotaManager;
-import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.zookeeper.MetaTableLocator;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
-import org.mockito.Mockito;
 
 import com.google.protobuf.Service;
 
@@ -213,6 +211,17 @@ public class MockNoopMasterServices implements MasterServices, Server {
   @Override
   public List<ProcedureInfo> listProcedures() throws IOException {
     return null;  //To change body of implemented methods use File | Settings | File Templates.
+  }
+
+
+  /*
+   * Restore table set
+   */
+  public long restoreTables(String backupRootDir,
+      String backupId, boolean check, List<TableName> sTableList,
+      List<TableName> tTableList, boolean isOverwrite, long nonceGroup, long nonce)
+          throws IOException {
+    return -1;
   }
 
   @Override

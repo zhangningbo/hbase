@@ -31,6 +31,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.RegionLocator;
 import org.apache.hadoop.hbase.client.Table;
@@ -58,6 +59,7 @@ public class TestMasterRestartAfterDisablingTable {
     log("Starting cluster");
     Configuration conf = HBaseConfiguration.create();
     HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility(conf);
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     log("Waiting for active/ready master");
@@ -79,9 +81,12 @@ public class TestMasterRestartAfterDisablingTable {
     TEST_UTIL.getHBaseAdmin().disableTable(table);
 
     NavigableSet<String> regions = HBaseTestingUtility.getAllOnlineRegions(cluster);
-    assertEquals(
-        "The number of regions for the table tableRestart should be 0 and only"
-            + "the catalog and namespace tables should be present.", 2, regions.size());
+    for (String region : regions) {
+      assertTrue(
+          "The number of regions for the table tableRestart should be 0 and only"
+              + "the catalog and namespace tables should be present.",
+              !region.startsWith(table.getNameAsString()));
+    }
 
     List<MasterThread> masterThreads = cluster.getMasterThreads();
     MasterThread activeMaster = null;
@@ -110,7 +115,7 @@ public class TestMasterRestartAfterDisablingTable {
     regions = HBaseTestingUtility.getAllOnlineRegions(cluster);
     assertEquals("The assigned regions were not onlined after master"
         + " switch except for the catalog and namespace tables.",
-          6, regions.size());
+          7, regions.size());
     assertTrue("The table should be in enabled state",
         cluster.getMaster().getTableStateManager()
         .isTableState(TableName.valueOf("tableRestart"), TableState.State.ENABLED));

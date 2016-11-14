@@ -35,6 +35,7 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.MiniHBaseCluster;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.backup.BackupRestoreConstants;
 import org.apache.hadoop.hbase.client.RegionLocator;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
@@ -67,6 +68,7 @@ public class  TestRollingRestart {
     log("Starting cluster");
     Configuration conf = HBaseConfiguration.create();
     HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility(conf);
+    TEST_UTIL.getConfiguration().setBoolean(BackupRestoreConstants.BACKUP_ENABLE_KEY, true);
     TEST_UTIL.startMiniCluster(NUM_MASTERS, NUM_RS);
     MiniHBaseCluster cluster = TEST_UTIL.getHBaseCluster();
     log("Waiting for active/ready master");
@@ -93,7 +95,7 @@ public class  TestRollingRestart {
     if (regions.size() != 2) {
       for (String oregion : regions) log("Region still online: " + oregion);
     }
-    assertEquals(2, regions.size());
+    assertEquals(3, regions.size());
     log("Enabling table\n");
     TEST_UTIL.getHBaseAdmin().enableTable(table);
     log("Waiting for no more RIT\n");
