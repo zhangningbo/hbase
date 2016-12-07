@@ -53,21 +53,16 @@ import org.apache.hadoop.hbase.wal.AbstractFSWALProvider;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Evolving
-public class IncrementalBackupManager {
+public class IncrementalBackupManager extends BackupManager{
   public static final Log LOG = LogFactory.getLog(IncrementalBackupManager.class);
 
-  // parent manager
-  private final BackupManager backupManager;
-  private final Configuration conf;
-
-  public IncrementalBackupManager(BackupManager bm) {
-    this.backupManager = bm;
-    this.conf = bm.getConf();
+  public IncrementalBackupManager(Connection conn, Configuration conf) throws IOException {
+    super(conn, conf);
   }
 
   /**
-   * Obtain the list of logs that need to be copied out for this incremental backup.
-   * The list is set in BackupContext.
+   * Obtain the list of logs that need to be copied out for this incremental backup. The list is set
+   * in BackupContext.
    * @param conn the Connection
    * @param backupContext backup context
    * @return The new HashMap of RS log timestamps after the log roll for this incremental backup.
@@ -79,12 +74,11 @@ public class IncrementalBackupManager {
     HashMap<String, Long> newTimestamps;
     HashMap<String, Long> previousTimestampMins;
 
-    String savedStartCode = backupManager.readBackupStartCode();
+    String savedStartCode = readBackupStartCode();
 
     // key: tableName
     // value: <RegionServer,PreviousTimeStamp>
-    HashMap<TableName, HashMap<String, Long>> previousTimestampMap =
-        backupManager.readLogTimestampMap();
+    HashMap<TableName, HashMap<String, Long>> previousTimestampMap = readLogTimestampMap();
 
     previousTimestampMins = BackupServerUtil.getRSLogTimestampMins(previousTimestampMap);
 
@@ -109,12 +103,12 @@ public class IncrementalBackupManager {
         LogRollMasterProcedureManager.ROLLLOG_PROCEDURE_NAME, props);
 
     }
-    newTimestamps = backupManager.readRegionServerLastLogRollResult();
+    newTimestamps = readRegionServerLastLogRollResult();
 
     logList = getLogFilesForNewBackup(previousTimestampMins, newTimestamps, conf, savedStartCode);
     List<WALItem> logFromSystemTable =
         getLogFilesFromBackupSystem(previousTimestampMins,
-      newTimestamps, backupManager.getBackupContext().getTargetRootDir());
+      newTimestamps, getBackupContext().getTargetRootDir());
     addLogsFromBackupSystemToContext(logFromSystemTable);
 
     logList = excludeAlreadyBackedUpWALs(logList, logFromSystemTable);
@@ -164,7 +158,7 @@ public class IncrementalBackupManager {
   private List<WALItem> getLogFilesFromBackupSystem(HashMap<String, Long> olderTimestamps,
       HashMap<String, Long> newestTimestamps, String backupRoot) throws IOException {
     List<WALItem> logFiles = new ArrayList<WALItem>();
-    Iterator<WALItem> it = backupManager.getWALFilesFromBackupSystem();
+    Iterator<WALItem> it = getWALFilesFromBackupSystem();
     while (it.hasNext()) {
       WALItem item = it.next();
       String rootDir = item.getBackupRoot();
@@ -299,7 +293,7 @@ public class IncrementalBackupManager {
        * last backup.
        */
       if (oldTimeStamp == null) {
-        if (currentLogTS < Long.parseLong(savedStartCode)) {
+        if (currentLogTS < Long.valueOf(savedStartCode)) {
           // This log file is really old, its region server was before our last backup.
           continue;
         } else {
@@ -345,7 +339,7 @@ public class IncrementalBackupManager {
       Long timestamp = null;
       try {
         timestamp = BackupClientUtil.getCreationTime(path);
-        return timestamp > lastBackupTS;
+        return timestamp > Long.valueOf(lastBackupTS);
       } catch (Exception e) {
         LOG.warn("Cannot read timestamp of log file " + path);
         return false;

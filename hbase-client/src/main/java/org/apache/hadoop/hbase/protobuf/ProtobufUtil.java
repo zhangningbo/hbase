@@ -41,7 +41,6 @@ import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.Tag;
 import org.apache.hadoop.hbase.TagUtil;
-import org.apache.hadoop.hbase.backup.BackupType;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Consistency;
@@ -79,7 +78,6 @@ import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionSpecifier;
 import org.apache.hadoop.hbase.protobuf.generated.HBaseProtos.RegionSpecifier.RegionSpecifierType;
 import org.apache.hadoop.hbase.protobuf.generated.MapReduceProtos;
 import org.apache.hadoop.hbase.protobuf.generated.ZooKeeperProtos;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.BackupProtos;
 import org.apache.hadoop.hbase.util.Addressing;
 import org.apache.hadoop.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -305,28 +303,6 @@ public final class ProtobufUtil {
    * @return the converted ServerName
    */
   public static ServerName toServerName(final HBaseProtos.ServerName proto) {
-    if (proto == null) return null;
-    String hostName = proto.getHostName();
-    long startCode = -1;
-    int port = -1;
-    if (proto.hasPort()) {
-      port = proto.getPort();
-    }
-    if (proto.hasStartCode()) {
-      startCode = proto.getStartCode();
-    }
-    return ServerName.valueOf(hostName, port, startCode);
-  }
-
-
-  /**
-   * Convert a protocol buffer ServerName to a ServerName
-   *
-   * @param proto the protocol buffer ServerName to convert
-   * @return the converted ServerName
-   */
-  public static ServerName toServerNameShaded(
-      final org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.ServerName proto) {
     if (proto == null) return null;
     String hostName = proto.getHostName();
     long startCode = -1;
@@ -1694,14 +1670,6 @@ public final class ProtobufUtil {
         tableNamePB.getQualifier().asReadOnlyByteBuffer());
   }
 
-  public static org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.TableName
-    toProtoTableNameShaded(TableName tableName) {
-    return org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.TableName.newBuilder()
-        .setNamespace(org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString.copyFrom(tableName.getNamespace()))
-        .setQualifier(org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString.copyFrom(tableName.getQualifier())).build();
-  }
-
-
   /**
    * This version of protobuf's mergeFrom avoids the hard-coded 64MB limit for decoding
    * buffers when working with byte arrays
@@ -1777,10 +1745,6 @@ public final class ProtobufUtil {
     regionBuilder.setValue(ByteStringer.wrap(value));
     regionBuilder.setType(type);
     return regionBuilder.build();
-  }
-
-  public static BackupProtos.BackupType toProtoBackupType(BackupType type) {
-    return BackupProtos.BackupType.valueOf(type.name());
   }
 
   /**

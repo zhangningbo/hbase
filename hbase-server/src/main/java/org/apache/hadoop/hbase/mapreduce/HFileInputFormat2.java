@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFile.Reader;
 import org.apache.hadoop.hbase.io.hfile.HFileScanner;
@@ -87,7 +86,7 @@ public class HFileInputFormat2 extends FileInputFormat<NullWritable, Cell> {
       Path path = fileSplit.getPath();
       FileSystem fs = path.getFileSystem(conf);
       LOG.info("Initialize HFileRecordReader for {}", path);
-      this.in = HFile.createReader(fs, path, new CacheConfig(conf), conf);
+      this.in = HFile.createReader(fs, path, conf);
 
       // The file info must be loaded before the scanner can be used.
       // This seems like a bug in HBase, but it's easily worked around.

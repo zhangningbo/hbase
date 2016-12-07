@@ -213,17 +213,6 @@ public class MockNoopMasterServices implements MasterServices, Server {
     return null;  //To change body of implemented methods use File | Settings | File Templates.
   }
 
-
-  /*
-   * Restore table set
-   */
-  public long restoreTables(String backupRootDir,
-      String backupId, boolean check, List<TableName> sTableList,
-      List<TableName> tTableList, boolean isOverwrite, long nonceGroup, long nonce)
-          throws IOException {
-    return -1;
-  }
-
   @Override
   public List<HTableDescriptor> listTableDescriptorsByNamespace(String name) throws IOException {
     return null;  //To change body of implemented methods use File | Settings | File Templates.

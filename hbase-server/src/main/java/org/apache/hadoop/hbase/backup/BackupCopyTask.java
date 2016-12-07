@@ -41,7 +41,7 @@ public interface BackupCopyTask extends Configurable {
    * @throws IOException exception
    */
   int copy(BackupInfo backupContext, BackupManager backupManager, Configuration conf,
-      BackupType copyType, String[] options) throws IOException;
+      BackupType backupType, String[] options) throws IOException;
 
 
    /**

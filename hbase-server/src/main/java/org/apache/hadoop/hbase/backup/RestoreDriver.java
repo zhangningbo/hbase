@@ -32,7 +32,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.backup.impl.BackupManager;
 import org.apache.hadoop.hbase.backup.impl.BackupSystemTable;
-import org.apache.hadoop.hbase.backup.impl.HBaseBackupAdmin;
+import org.apache.hadoop.hbase.backup.impl.BackupAdminImpl;
 import org.apache.hadoop.hbase.backup.util.BackupServerUtil;
 import org.apache.hadoop.hbase.backup.util.LogUtils;
 import org.apache.hadoop.hbase.backup.util.RestoreServerUtil;
@@ -52,8 +52,8 @@ public class RestoreDriver extends AbstractHBaseTool implements BackupRestoreCon
   private static final String USAGE_STRING =
       "Usage: bin/hbase restore <backup_path> <backup_id> <table(s)> [options]\n"
           + "  backup_path     Path to a backup destination root\n"
-          + "  backup_id       Backup image ID to restore"
-          + "  table(s)        Comma-separated list of tables to restore";
+          + "  backup_id       Backup image ID to restore\n"
+          + "  table(s)        Comma-separated list of tables to restore\n";
 
   private static final String USAGE_FOOTER = "";
 
@@ -70,7 +70,7 @@ public class RestoreDriver extends AbstractHBaseTool implements BackupRestoreCon
     // Check if backup is enabled
     if (!BackupManager.isBackupEnabled(getConf())) {
       System.err.println("Backup is not enabled. To enable backup, "+
-          "set \'hbase.backup.enabled'=true and restart "+
+          "set "+ BackupRestoreConstants.BACKUP_ENABLE_KEY+"=true and restart "+
           "the cluster");
       return -1;
     }
@@ -110,7 +110,7 @@ public class RestoreDriver extends AbstractHBaseTool implements BackupRestoreCon
     String tableMapping =
         cmd.hasOption(OPTION_TABLE_MAPPING) ? cmd.getOptionValue(OPTION_TABLE_MAPPING) : null;
     try (final Connection conn = ConnectionFactory.createConnection(conf);
-        BackupAdmin client = new HBaseBackupAdmin(conn);) {
+        BackupAdmin client = new BackupAdminImpl(conn);) {
       // Check backup set
       if (cmd.hasOption(OPTION_SET)) {
         String setName = cmd.getOptionValue(OPTION_SET);

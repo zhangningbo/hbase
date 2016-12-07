@@ -47,6 +47,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.management.MalformedObjectNameException;
@@ -374,7 +375,7 @@ public class HRegionServer extends HasThread implements
 
   // WAL roller. log is protected rather than private to avoid
   // eclipse warning when accessed by inner classes
-  public final LogRoller walRoller;
+  protected final LogRoller walRoller;
 
   // flag set after we're done setting up server threads
   final AtomicBoolean online = new AtomicBoolean(false);
@@ -1909,6 +1910,10 @@ public class HRegionServer extends HasThread implements
     }
     walRoller.addWAL(wal);
     return wal;
+  }
+
+  public LogRoller getWalRoller() {
+    return walRoller;
   }
 
   @Override

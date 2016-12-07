@@ -97,7 +97,7 @@ public class BackupStatus implements Serializable {
     if(snapshotName != null) {
       builder.setSnapshot(snapshotName);
     }
-    builder.setTable(ProtobufUtil.toProtoTableNameShaded(table));
+    builder.setTable(org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil.toProtoTableName(table));
     builder.setTargetDir(targetDir);
     return builder.build();
   }

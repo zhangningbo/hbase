@@ -408,11 +408,6 @@
       <version>${hadoop-two.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-distcp</artifactId>
-      <version>${hadoop-two.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-hadoop-compat</artifactId>
     </dependency>

@@ -50,7 +50,6 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.io.HFileLink;
-import org.apache.hadoop.hbase.io.hfile.CacheConfig;
 import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.apache.hadoop.hbase.regionserver.HRegionFileSystem;
@@ -72,7 +71,7 @@ public class RestoreServerUtil {
 
   public static final Log LOG = LogFactory.getLog(RestoreServerUtil.class);
 
-  private final String[] ignoreDirs = { "recovered.edits" };
+  private final String[] ignoreDirs = { HConstants.RECOVERED_EDITS_DIR };
 
   private final long TABLE_AVAILABILITY_WAIT_TIME = 180000;
 
@@ -545,23 +544,6 @@ public class RestoreServerUtil {
    */
   private LoadIncrementalHFiles createLoader(Path tableArchivePath, boolean multipleTables)
       throws IOException {
-    // set configuration for restore:
-    // LoadIncrementalHFile needs more time
-    // <name>hbase.rpc.timeout</name> <value>600000</value>
-    // calculates
-    Integer milliSecInMin = 60000;
-    Integer previousMillis = this.conf.getInt("hbase.rpc.timeout", 0);
-    Integer numberOfFilesInDir =
-        multipleTables ? getMaxNumberOfFilesInSubDir(tableArchivePath) :
-            getNumberOfFilesInDir(tableArchivePath);
-    Integer calculatedMillis = numberOfFilesInDir * milliSecInMin; // 1 minute per file
-    Integer resultMillis = Math.max(calculatedMillis, previousMillis);
-    if (resultMillis > previousMillis) {
-      LOG.info("Setting configuration for restore with LoadIncrementalHFile: "
-          + "hbase.rpc.timeout to " + calculatedMillis / milliSecInMin
-          + " minutes, to handle the number of files in backup " + tableArchivePath);
-      this.conf.setInt("hbase.rpc.timeout", resultMillis);
-    }
 
     // By default, it is 32 and loader will fail if # of files in any region exceed this
     // limit. Bad for snapshot restore.
@@ -632,7 +614,7 @@ public class RestoreServerUtil {
               || HFileLink.isHFileLink(hfile.getName())) {
             continue;
           }
-          HFile.Reader reader = HFile.createReader(fs, hfile, new CacheConfig(conf), conf);
+          HFile.Reader reader = HFile.createReader(fs, hfile, conf);
           final byte[] first, last;
           try {
             reader.loadFileInfo();

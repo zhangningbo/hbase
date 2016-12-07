@@ -46,14 +46,13 @@ import org.apache.hadoop.tools.DistCp;
 import org.apache.hadoop.tools.DistCpConstants;
 import org.apache.hadoop.tools.DistCpOptions;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+
 /**
  * Copier for backup operation. Basically, there are 2 types of copy. One is copying from snapshot,
- * which bases on extending ExportSnapshot's function with copy progress reporting to ZooKeeper
- * implementation. The other is copying for incremental log files, which bases on extending
- * DistCp's function with copy progress reporting to ZooKeeper implementation.
+ * which bases on extending ExportSnapshot's function. The other is copying for incremental
+ * log files, which bases on extending DistCp's function.
  *
  */
-
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class MapReduceBackupCopyTask implements BackupCopyTask {
@@ -215,7 +214,8 @@ public class MapReduceBackupCopyTask implements BackupCopyTask {
 
         // Update the copy progress to ZK every 0.5s if progress value changed
         int progressReportFreq =
-            this.getConf().getInt("hbase.backup.progressreport.frequency", 500);
+            MapReduceBackupCopyTask.this.getConf().
+              getInt("hbase.backup.progressreport.frequency", 500);
         float lastProgress = progressDone;
         while (!job.isComplete()) {
           float newProgress =

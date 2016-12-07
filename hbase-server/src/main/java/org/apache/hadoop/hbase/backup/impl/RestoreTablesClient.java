@@ -51,10 +51,6 @@ public class RestoreTablesClient {
   private String targetRootDir;
   private boolean isOverwrite;
 
-  public RestoreTablesClient() {
-    // Required by the Procedure framework to create the procedure on replay
-  }
-
   public RestoreTablesClient(Connection conn, RestoreRequest request)
       throws IOException {
     this.targetRootDir = request.getBackupRootDir();

@@ -49,16 +49,15 @@ message BackupImage {
   repeated TableName table_list = 4;
   optional uint64 start_ts = 5;
   optional uint64 complete_ts = 6;
-  repeated BackupImage ancestors = 7; 
+  repeated BackupImage ancestors = 7;
   repeated TableServerTimestamp tst_map = 8;
-  
-}
 
+}
 
 message TableBackupStatus {
   optional TableName table = 1;
   optional string target_dir = 2;
-  optional string snapshot = 3; 	
+  optional string snapshot = 3;
 }
 
 message BackupInfo {
@@ -71,11 +70,11 @@ message BackupInfo {
   repeated TableBackupStatus table_backup_status = 7;
   optional uint64  start_ts = 8;
   optional uint64  end_ts = 9;
-  optional uint32 progress = 10; 
+  optional uint32 progress = 10;
   optional string job_id = 11;
   optional uint32 workers_number = 12;
   optional uint64 bandwidth = 13;
-  
+
   enum BackupState {
     WAITING = 0;
     RUNNING = 1;
@@ -91,6 +90,5 @@ message BackupInfo {
     SNAPSHOTCOPY = 3;
     INCREMENTAL_COPY = 4;
     STORE_MANIFEST = 5;
-  } 
+  }
 }
-

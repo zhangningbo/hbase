@@ -35,7 +35,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.backup.BackupInfo;
@@ -43,7 +42,7 @@ import org.apache.hadoop.hbase.backup.BackupType;
 import org.apache.hadoop.hbase.backup.util.BackupClientUtil;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
-import org.apache.hadoop.hbase.protobuf.ProtobufUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.BackupProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos;
 
@@ -66,6 +65,49 @@ public class BackupManifest {
 
   public static class BackupImage implements Comparable<BackupImage> {
 
+    static class Builder {
+      BackupImage image;
+
+      Builder() {
+        image = new BackupImage();
+      }
+
+      Builder withBackupId(String backupId) {
+        image.setBackupId(backupId);
+        return this;
+      }
+
+      Builder withType(BackupType type) {
+        image.setType(type);
+        return this;
+      }
+
+      Builder withRootDir(String rootDir) {
+        image.setRootDir(rootDir);
+        return this;
+      }
+
+      Builder withTableList(List<TableName> tableList) {
+        image.setTableList(tableList);
+        return this;
+      }
+
+      Builder withStartTime(long startTime) {
+        image.setStartTs(startTime);
+        return this;
+      }
+
+      Builder withCompleteTime(long completeTime) {
+        image.setCompleteTs(completeTime);
+        return this;
+      }
+
+      BackupImage build() {
+        return image;
+      }
+
+    }
+
     private String backupId;
     private BackupType type;
     private String rootDir;
@@ -75,11 +117,15 @@ public class BackupManifest {
     private ArrayList<BackupImage> ancestors;
     private HashMap<TableName, HashMap<String, Long>> incrTimeRanges;
 
+    static Builder newBuilder() {
+      return new Builder();
+    }
+
     public BackupImage() {
       super();
     }
 
-    public BackupImage(String backupId, BackupType type, String rootDir,
+    private BackupImage(String backupId, BackupType type, String rootDir,
         List<TableName> tableList, long startTs, long completeTs) {
       this.backupId = backupId;
       this.type = type;
@@ -127,7 +173,7 @@ public class BackupManifest {
       }
 
       for (TableName name: tableList) {
-        builder.addTableList(ProtobufUtil.toProtoTableNameShaded(name));
+        builder.addTableList(ProtobufUtil.toProtoTableName(name));
       }
 
       if (ancestors != null){
@@ -157,7 +203,7 @@ public class BackupManifest {
         }
         List<BackupProtos.ServerTimestamp> listSt = tst.getServerTimestampList();
         for(BackupProtos.ServerTimestamp stm: listSt) {
-          ServerName sn = ProtobufUtil.toServerNameShaded(stm.getServer());
+          ServerName sn = ProtobufUtil.toServerName(stm.getServer());
           map.put(sn.getHostname() +":" + sn.getPort(), stm.getTimestamp());
         }
       }
@@ -174,7 +220,7 @@ public class BackupManifest {
         HashMap<String, Long> value = entry.getValue();
         BackupProtos.TableServerTimestamp.Builder tstBuilder =
             BackupProtos.TableServerTimestamp.newBuilder();
-        tstBuilder.setTable(ProtobufUtil.toProtoTableNameShaded(key));
+        tstBuilder.setTable(ProtobufUtil.toProtoTableName(key));
 
         for (Map.Entry<String, Long> entry2 : value.entrySet()) {
           String s = entry2.getKey();
@@ -312,79 +358,37 @@ public class BackupManifest {
     }
   }
 
-  // hadoop hbase configuration
-  protected Configuration config = null;
-
-  // backup root directory
-  private String rootDir = null;
-
   // backup image directory
   private String tableBackupDir = null;
-
-  // backup log directory if this is an incremental backup
-  private String logBackupDir = null;
-
-  // backup token
-  private String backupId;
-
-  // backup type, full or incremental
-  private BackupType type;
-
-  // the table list for the backup
-  private ArrayList<TableName> tableList;
-
-  // actual start timestamp of the backup process
-  private long startTs;
-
-  // actual complete timestamp of the backup process
-  private long completeTs;
-
-  // the region server timestamp for tables:
-  // <table, <rs, timestamp>>
-  private Map<TableName, HashMap<String, Long>> incrTimeRanges;
-
-  // dependency of this backup, including all the dependent images to do PIT recovery
-  //private Map<String, BackupImage> dependency;
   private BackupImage backupImage;
 
   /**
    * Construct manifest for a ongoing backup.
-   * @param backupCtx The ongoing backup context
+   * @param backup The ongoing backup info
    */
-  public BackupManifest(BackupInfo backupCtx) {
-    this.backupId = backupCtx.getBackupId();
-    this.type = backupCtx.getType();
-    this.rootDir = backupCtx.getTargetRootDir();
-    if (this.type == BackupType.INCREMENTAL) {
-      this.logBackupDir = backupCtx.getHLogTargetDir();
-    }
-    this.startTs = backupCtx.getStartTs();
-    this.completeTs = backupCtx.getEndTs();
-    this.loadTableList(backupCtx.getTableNames());
-    this.backupImage = new BackupImage(this.backupId, this.type, this.rootDir, tableList, this.startTs,
-     this.completeTs);
+  public BackupManifest(BackupInfo backup) {
+
+    BackupImage.Builder builder = BackupImage.newBuilder();
+    this.backupImage = builder.withBackupId(backup.getBackupId()).
+      withType(backup.getType()).withRootDir(backup.getTargetRootDir()).
+      withTableList(backup.getTableNames()).withStartTime(backup.getStartTs()).
+      withCompleteTime(backup.getEndTs()).build();
   }
 
 
   /**
    * Construct a table level manifest for a backup of the named table.
-   * @param backupCtx The ongoing backup context
+   * @param backup The ongoing backup session info
    */
-  public BackupManifest(BackupInfo backupCtx, TableName table) {
-    this.backupId = backupCtx.getBackupId();
-    this.type = backupCtx.getType();
-    this.rootDir = backupCtx.getTargetRootDir();
-    this.tableBackupDir = backupCtx.getBackupStatus(table).getTargetDir();
-    if (this.type == BackupType.INCREMENTAL) {
-      this.logBackupDir = backupCtx.getHLogTargetDir();
-    }
-    this.startTs = backupCtx.getStartTs();
-    this.completeTs = backupCtx.getEndTs();
+  public BackupManifest(BackupInfo backup, TableName table) {
+    this.tableBackupDir = backup.getBackupStatus(table).getTargetDir();
     List<TableName> tables = new ArrayList<TableName>();
     tables.add(table);
-    this.loadTableList(tables);
-    this.backupImage = new BackupImage(this.backupId, this.type, this.rootDir, tableList, this.startTs,
-      this.completeTs);
+    BackupImage.Builder builder = BackupImage.newBuilder();
+    this.backupImage = builder.withBackupId(backup.getBackupId()).
+      withType(backup.getType()).withRootDir(backup.getTargetRootDir()).
+      withTableList(tables).withStartTime(backup.getStartTs()).
+      withCompleteTime(backup.getEndTs()).build();
   }
 
   /**
@@ -413,8 +417,6 @@ public class BackupManifest {
     // It could be the backup log dir where there is also a manifest file stored.
     // This variable's purpose is to keep the correct and original location so
     // that we can store/persist it.
-    this.tableBackupDir = backupPath.toString();
-    this.config = fs.getConf();
     try {
 
       FileStatus[] subFiles = BackupClientUtil.listStatus(fs, backupPath, null);
@@ -438,23 +440,6 @@ public class BackupManifest {
             throw new BackupException(e);
           }
           this.backupImage = BackupImage.fromProto(proto);
-          // Here the parameter backupDir is where the manifest file is.
-          // There should always be a manifest file under:
-          // backupRootDir/namespace/table/backupId/.backup.manifest
-          this.rootDir = backupPath.getParent().getParent().getParent().toString();
-
-          Path p = backupPath.getParent();
-          if (p.getName().equals(HConstants.HREGION_LOGDIR_NAME)) {
-            this.rootDir = p.getParent().toString();
-          } else {
-            this.rootDir = p.getParent().getParent().toString();
-          }
-          this.backupId = this.backupImage.getBackupId();
-          this.startTs = this.backupImage.getStartTs();
-          this.completeTs = this.backupImage.getCompleteTs();
-          this.type = this.backupImage.getType();
-          this.tableList = (ArrayList<TableName>)this.backupImage.getTableNames();
-          this.incrTimeRanges = this.backupImage.getIncrTimeRanges();
           LOG.debug("Loaded manifest instance from manifest file: "
               + BackupClientUtil.getPath(subFile.getPath()));
           return;
@@ -469,39 +454,15 @@ public class BackupManifest {
   }
 
   public BackupType getType() {
-    return type;
-  }
-
-  public void setType(BackupType type) {
-    this.type = type;
-  }
-
-  /**
-   * Loads table list.
-   * @param tableList Table list
-   */
-  private void loadTableList(List<TableName> tableList) {
-
-    this.tableList = this.getTableList();
-    if (this.tableList.size() > 0) {
-      this.tableList.clear();
-    }
-    for (int i = 0; i < tableList.size(); i++) {
-      this.tableList.add(tableList.get(i));
-    }
-
-    LOG.debug(tableList.size() + " tables exist in table set.");
+    return backupImage.getType();
   }
 
   /**
    * Get the table set of this image.
    * @return The table set list
    */
-  public ArrayList<TableName> getTableList() {
-    if (this.tableList == null) {
-      this.tableList = new ArrayList<TableName>();
-    }
-    return this.tableList;
+  public List<TableName> getTableList() {
+    return backupImage.getTableNames();
   }
 
   /**
@@ -512,21 +473,21 @@ public class BackupManifest {
   public void store(Configuration conf) throws BackupException {
     byte[] data = backupImage.toProto().toByteArray();
     // write the file, overwrite if already exist
+    String logBackupDir = BackupClientUtil.getLogBackupDir(backupImage.getRootDir(),
+      backupImage.getBackupId());
     Path manifestFilePath =
-        new Path(new Path((this.tableBackupDir != null ? this.tableBackupDir : this.logBackupDir))
+        new Path(new Path((tableBackupDir != null ? tableBackupDir : logBackupDir))
             ,MANIFEST_FILE_NAME);
-    try {
-      FSDataOutputStream out =
-          manifestFilePath.getFileSystem(conf).create(manifestFilePath, true);
+    try ( FSDataOutputStream out =
+        manifestFilePath.getFileSystem(conf).create(manifestFilePath, true);)
+    {
       out.write(data);
-      out.close();
     } catch (IOException e) {
       throw new BackupException(e.getMessage());
     }
 
     LOG.info("Manifest file stored to " + manifestFilePath);
   }
-
 
   /**
    * Get this backup image.
@@ -549,15 +510,11 @@ public class BackupManifest {
    * @param incrTimestampMap timestamp map
    */
   public void setIncrTimestampMap(HashMap<TableName, HashMap<String, Long>> incrTimestampMap) {
-    this.incrTimeRanges = incrTimestampMap;
     this.backupImage.setIncrTimeRanges(incrTimestampMap);
   }
 
   public Map<TableName, HashMap<String, Long>> getIncrTimestampMap() {
-    if (this.incrTimeRanges == null) {
-      this.incrTimeRanges = new HashMap<TableName, HashMap<String, Long>>();
-    }
-    return this.incrTimeRanges;
+    return backupImage.getIncrTimeRanges();
   }
 
   /**
@@ -697,14 +654,17 @@ public class BackupManifest {
   public BackupInfo toBackupInfo()
   {
     BackupInfo info = new BackupInfo();
-    info.setType(type);
-    TableName[] tables = new TableName[tableList.size()];
-    info.addTables(getTableList().toArray(tables));
-    info.setBackupId(backupId);
-    info.setStartTs(startTs);
-    info.setTargetRootDir(rootDir);
-    if(type == BackupType.INCREMENTAL) {
-      info.setHlogTargetDir(logBackupDir);
+    info.setType(backupImage.getType());
+    List<TableName> list = backupImage.getTableNames();
+    TableName[] tables = new TableName[list.size()];
+    info.addTables(list.toArray(tables));
+    info.setBackupId(backupImage.getBackupId());
+    info.setStartTs(backupImage.getStartTs());
+    info.setTargetRootDir(backupImage.getRootDir());
+    if(backupImage.getType() == BackupType.INCREMENTAL) {
+
+      info.setHLogTargetDir(BackupClientUtil.getLogBackupDir(backupImage.getRootDir(),
+        backupImage.getBackupId()));
     }
     return info;
   }

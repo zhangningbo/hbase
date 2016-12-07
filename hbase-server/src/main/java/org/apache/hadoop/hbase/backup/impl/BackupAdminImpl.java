@@ -54,7 +54,7 @@ import com.google.common.collect.Lists;
 
 /**
  * The administrative API implementation for HBase Backup . Create an instance from
- * {@link HBaseBackupAdmin#HBaseBackupAdmin(Connection)} and call {@link #close()} afterwards.
+ * {@link #BackupAdminImpl(Connection)} and call {@link #close()} afterwards.
  * <p>BackupAdmin can be used to create backups, restore data from backups and for
  * other backup-related operations.
  *
@@ -64,17 +64,20 @@ import com.google.common.collect.Lists;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 
-public class HBaseBackupAdmin implements BackupAdmin {
-  private static final Log LOG = LogFactory.getLog(HBaseBackupAdmin.class);
+public class BackupAdminImpl implements BackupAdmin {
+  private static final Log LOG = LogFactory.getLog(BackupAdminImpl.class);
 
   private final Connection conn;
 
-  public HBaseBackupAdmin(Connection conn) {
+  public BackupAdminImpl(Connection conn) {
     this.conn = conn;
   }
 
   @Override
   public void close() throws IOException {
+    if (conn != null) {
+      conn.close();
+    }
   }
 
   @Override
@@ -451,8 +454,7 @@ public class HBaseBackupAdmin implements BackupAdmin {
 
   @Override
   public Future<Void> restoreAsync(RestoreRequest request) throws IOException {
-    // TBI
-    return null;
+    throw new UnsupportedOperationException("Asynchronous restore is not supported yet");
   }
 
   @Override
@@ -548,8 +550,7 @@ public class HBaseBackupAdmin implements BackupAdmin {
 
   @Override
   public Future<String> backupTablesAsync(final BackupRequest userRequest) throws IOException {
-    // TBI
-    return null;
+    throw new UnsupportedOperationException("Asynchronous backup is not supported yet");
   }
 
 }

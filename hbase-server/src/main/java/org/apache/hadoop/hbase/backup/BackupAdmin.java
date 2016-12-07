@@ -41,7 +41,7 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 public interface BackupAdmin extends Closeable{
 
   /**
-   * Backs up given list of tables fully. Synchronous operation.
+   * Backup given list of tables fully. Synchronous operation.
    *
    * @param userRequest BackupRequest instance
    * @return the backup Id
@@ -59,14 +59,14 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Restore backup
-   * @param request - restore request
+   * @param request restore request
    * @throws IOException exception
    */
   public void restore(RestoreRequest request) throws IOException;
 
   /**
    * Restore backup
-   * @param request - restore request
+   * @param request restore request
    * @return Future which client can wait on
    * @throws IOException exception
    */
@@ -74,7 +74,7 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Describe backup image command
-   * @param backupId - backup id
+   * @param backupId backup id
    * @return backup info
    * @throws IOException exception
    */
@@ -82,7 +82,7 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Show backup progress command
-   * @param backupId - backup id (may be null)
+   * @param backupId backup id (may be null)
    * @return backup progress (0-100%), -1 if no active sessions
    *  or session not found
    * @throws IOException exception
@@ -91,7 +91,7 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Delete backup image command
-   * @param backupIds - backup id
+   * @param backupIds backup id list
    * @return total number of deleted sessions
    * @throws IOException exception
    */
@@ -99,7 +99,7 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Show backup history command
-   * @param n - last n backup sessions
+   * @param n last n backup sessions
    * @return list of backup infos
    * @throws IOException exception
    */
@@ -108,8 +108,8 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Show backup history command with filters
-   * @param n - last n backup sessions
-   * @param f - list of filters
+   * @param n last n backup sessions
+   * @param f list of filters
    * @return list of backup infos
    * @throws IOException exception
    */
@@ -135,7 +135,7 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Delete backup set command
-   * @param name - backup set name
+   * @param name backup set name
    * @return true, if success, false - otherwise
    * @throws IOException exception
    */
@@ -143,16 +143,16 @@ public interface BackupAdmin extends Closeable{
 
   /**
    * Add tables to backup set command
-   * @param name - name of backup set.
-   * @param tables - list of tables to be added to this set.
+   * @param name name of backup set.
+   * @param tables list of tables to be added to this set.
    * @throws IOException exception
    */
   public void addToBackupSet(String name, TableName[] tables) throws IOException;
 
   /**
    * Remove tables from backup set
-   * @param name - name of backup set.
-   * @param tables - list of tables to be removed from this set.
+   * @param name name of backup set.
+   * @param tables list of tables to be removed from this set.
    * @throws IOException exception
    */
   public void removeFromBackupSet(String name, String[] tables) throws IOException;

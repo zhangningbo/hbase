@@ -57,13 +57,13 @@ public class TestBackupDescribe extends TestBackupBase {
     assertTrue(ret < 0);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(baos));
+    System.setErr(new PrintStream(baos));
     args = new String[]{"progress" };
     ToolRunner.run(TEST_UTIL.getConfiguration(), new BackupDriver(), args);
 
     String output = baos.toString();
     LOG.info("Output from progress: " + output);
-    assertTrue(output.indexOf(BackupCommands.NO_INFO_FOUND) >= 0);
+    assertTrue(output.indexOf(BackupCommands.NO_ACTIVE_SESSION_FOUND) >= 0);
   }
 
   @Test
