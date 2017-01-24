@@ -21,7 +21,6 @@ package org.apache.hadoop.hbase.master.procedure;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.logging.Log;
@@ -29,11 +28,10 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.MemoryCompactionPolicy;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.master.TableLockManager;
 import org.apache.hadoop.hbase.master.procedure.TestMasterProcedureScheduler.TestTableProcedure;
 import org.apache.hadoop.hbase.procedure2.Procedure;
-import org.apache.hadoop.hbase.procedure2.util.StringUtils;
 import org.apache.hadoop.hbase.regionserver.CompactingMemStore;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.testclassification.MasterTests;
@@ -44,7 +42,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 @Category({MasterTests.class, MediumTests.class})
@@ -58,8 +55,8 @@ public class TestMasterProcedureSchedulerConcurrency {
   public void setUp() throws IOException {
     conf = HBaseConfiguration.create();
     conf.set(CompactingMemStore.COMPACTING_MEMSTORE_TYPE_KEY,
-        String.valueOf(HColumnDescriptor.MemoryCompaction.NONE));
-    queue = new MasterProcedureScheduler(conf, new TableLockManager.NullTableLockManager());
+        String.valueOf(MemoryCompactionPolicy.NONE));
+    queue = new MasterProcedureScheduler(conf);
     queue.start();
   }
 
@@ -68,60 +65,6 @@ public class TestMasterProcedureSchedulerConcurrency {
     assertEquals("proc-queue expected to be empty", 0, queue.size());
     queue.stop();
     queue.clear();
-  }
-
-  @Test(timeout=60000)
-  public void testConcurrentCreateDelete() throws Exception {
-    final MasterProcedureScheduler procQueue = queue;
-    final TableName table = TableName.valueOf("testtb");
-    final AtomicBoolean running = new AtomicBoolean(true);
-    final AtomicBoolean failure = new AtomicBoolean(false);
-    Thread createThread = new Thread() {
-      @Override
-      public void run() {
-        try {
-          TestTableProcedure proc = new TestTableProcedure(1, table,
-              TableProcedureInterface.TableOperationType.CREATE);
-          while (running.get() && !failure.get()) {
-            if (procQueue.tryAcquireTableExclusiveLock(proc, table)) {
-              procQueue.releaseTableExclusiveLock(proc, table);
-            }
-          }
-        } catch (Throwable e) {
-          LOG.error("create failed", e);
-          failure.set(true);
-        }
-      }
-    };
-
-    Thread deleteThread = new Thread() {
-      @Override
-      public void run() {
-        try {
-          TestTableProcedure proc = new TestTableProcedure(2, table,
-              TableProcedureInterface.TableOperationType.DELETE);
-          while (running.get() && !failure.get()) {
-            if (procQueue.tryAcquireTableExclusiveLock(proc, table)) {
-              procQueue.releaseTableExclusiveLock(proc, table);
-            }
-            procQueue.markTableAsDeleted(table, proc);
-          }
-        } catch (Throwable e) {
-          LOG.error("delete failed", e);
-          failure.set(true);
-        }
-      }
-    };
-
-    createThread.start();
-    deleteThread.start();
-    for (int i = 0; i < 100 && running.get() && !failure.get(); ++i) {
-      Thread.sleep(100);
-    }
-    running.set(false);
-    createThread.join();
-    deleteThread.join();
-    assertEquals(false, failure.get());
   }
 
   /**
@@ -239,25 +182,21 @@ public class TestMasterProcedureSchedulerConcurrency {
 
     public Procedure acquire() {
       Procedure proc = null;
-      boolean avail = false;
-      while (!avail) {
-        proc = queue.poll();
-        if (proc == null) break;
+      boolean waiting = true;
+      while (waiting && queue.size() > 0) {
+        proc = queue.poll(100000000L);
+        if (proc == null) continue;
         switch (getTableOperationType(proc)) {
           case CREATE:
           case DELETE:
           case EDIT:
-            avail = queue.tryAcquireTableExclusiveLock(proc, getTableName(proc));
+            waiting = queue.waitTableExclusiveLock(proc, getTableName(proc));
             break;
           case READ:
-            avail = queue.tryAcquireTableSharedLock(proc, getTableName(proc));
+            waiting = queue.waitTableSharedLock(proc, getTableName(proc));
             break;
           default:
             throw new UnsupportedOperationException();
-        }
-        if (!avail) {
-          addFront(proc);
-          LOG.debug("yield procId=" + proc);
         }
       }
       return proc;
@@ -268,10 +207,10 @@ public class TestMasterProcedureSchedulerConcurrency {
         case CREATE:
         case DELETE:
         case EDIT:
-          queue.releaseTableExclusiveLock(proc, getTableName(proc));
+          queue.wakeTableExclusiveLock(proc, getTableName(proc));
           break;
         case READ:
-          queue.releaseTableSharedLock(proc, getTableName(proc));
+          queue.wakeTableSharedLock(proc, getTableName(proc));
           break;
       }
     }

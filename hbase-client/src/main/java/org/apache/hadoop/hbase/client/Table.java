@@ -112,7 +112,8 @@ public interface Table extends Closeable {
    * @param actions list of Get, Put, Delete, Increment, Append objects
    * @param results Empty Object[], same size as actions. Provides access to partial
    *                results, in case an exception is thrown. A null in the result array means that
-   *                the call for that action failed, even after retries
+   *                the call for that action failed, even after retries. The order of the objects
+   *                in the results array corresponds to the order of actions in the request list.
    * @throws IOException
    * @since 0.90.0
    */
@@ -147,7 +148,8 @@ public interface Table extends Closeable {
    * exist, the {@link Result} instance returned won't contain any {@link
    * org.apache.hadoop.hbase.KeyValue}, as indicated by {@link Result#isEmpty()}. If there are any
    * failures even after retries, there will be a null in the results array for those Gets, AND an
-   * exception will be thrown.
+   * exception will be thrown. The ordering of the Result array corresponds to the order of the
+   * list of Get requests.
    * @throws IOException if a remote or network exception occurs.
    * @since 0.90.0
    */
@@ -591,7 +593,9 @@ public interface Table extends Closeable {
    * total time being blocking reach the operation timeout before retries exhausted, it will break
    * early and throw SocketTimeoutException.
    * @param operationTimeout the total timeout of each operation in millisecond.
+   * @deprecated since 2.0.0, use {@link TableBuilder#setOperationTimeout} instead
    */
+  @Deprecated
   void setOperationTimeout(int operationTimeout);
 
   /**
@@ -635,7 +639,9 @@ public interface Table extends Closeable {
    * until retries exhausted or operation timeout reached.
    *
    * @param readRpcTimeout
+   * @deprecated since 2.0.0, use {@link TableBuilder#setReadRpcTimeout} instead
    */
+  @Deprecated
   void setReadRpcTimeout(int readRpcTimeout);
 
   /**
@@ -650,6 +656,8 @@ public interface Table extends Closeable {
    * until retries exhausted or operation timeout reached.
    *
    * @param writeRpcTimeout
+   * @deprecated since 2.0.0, use {@link TableBuilder#setWriteRpcTimeout} instead
    */
+  @Deprecated
   void setWriteRpcTimeout(int writeRpcTimeout);
 }

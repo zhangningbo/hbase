@@ -2412,9 +2412,10 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     status.setStatus("Preparing flush snapshotting stores in " + getRegionInfo().getEncodedName());
     MemstoreSize totalSizeOfFlushableStores = new MemstoreSize();
 
-    Set<byte[]> flushedFamilyNames = new HashSet<byte[]>();
+    Map<byte[], Long> flushedFamilyNamesToSeq = new HashMap<>();
     for (Store store: storesToFlush) {
-      flushedFamilyNames.add(store.getFamily().getName());
+      flushedFamilyNamesToSeq.put(store.getFamily().getName(),
+          ((HStore) store).preFlushSeqIDEstimation());
     }
 
     TreeMap<byte[], StoreFlushContext> storeFlushCtxs
@@ -2434,7 +2435,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     try {
       if (wal != null) {
         Long earliestUnflushedSequenceIdForTheRegion =
-            wal.startCacheFlush(encodedRegionName, flushedFamilyNames);
+            wal.startCacheFlush(encodedRegionName, flushedFamilyNamesToSeq);
         if (earliestUnflushedSequenceIdForTheRegion == null) {
           // This should never happen. This is how startCacheFlush signals flush cannot proceed.
           String msg = this.getRegionInfo().getEncodedName() + " flush aborted; WAL closing.";
@@ -2677,9 +2678,6 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     }
 
     // If we get to here, the HStores have been written.
-    for(Store storeToFlush :storesToFlush) {
-      ((HStore) storeToFlush).finalizeFlush();
-    }
     if (wal != null) {
       wal.completeCacheFlush(this.getRegionInfo().getEncodedNameAsBytes());
     }
@@ -3234,11 +3232,12 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         if (fromCP != null) {
           cellCount += fromCP.size();
         }
-        for (List<Cell> cells : familyMaps[i].values()) {
-          cellCount += cells.size();
+        if (getEffectiveDurability(mutation.getDurability()) != Durability.SKIP_WAL) {
+          for (List<Cell> cells : familyMaps[i].values()) {
+            cellCount += cells.size();
+          }
         }
       }
-      walEdit = new WALEdit(cellCount, replay);
       lock(this.updatesLock.readLock(), numReadyToWrite);
       locked = true;
 
@@ -3260,6 +3259,8 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
             if (cpMutations == null) {
               continue;
             }
+            Mutation mutation = batchOp.getMutation(i);
+            boolean skipWal = getEffectiveDurability(mutation.getDurability()) == Durability.SKIP_WAL;
             // Else Coprocessor added more Mutations corresponding to the Mutation at this index.
             for (int j = 0; j < cpMutations.length; j++) {
               Mutation cpMutation = cpMutations[j];
@@ -3272,12 +3273,22 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
               // Returned mutations from coprocessor correspond to the Mutation at index i. We can
               // directly add the cells from those mutations to the familyMaps of this mutation.
               mergeFamilyMaps(familyMaps[i], cpFamilyMap); // will get added to the memstore later
+
+              // The durability of returned mutation is replaced by the corresponding mutation.
+              // If the corresponding mutation contains the SKIP_WAL, we shouldn't count the
+              // cells of returned mutation.
+              if (!skipWal) {
+                for (List<Cell> cells : cpFamilyMap.values()) {
+                  cellCount += cells.size();
+                }
+              }
             }
           }
         }
       }
 
       // STEP 3. Build WAL edit
+      walEdit = new WALEdit(cellCount, replay);
       Durability durability = Durability.USE_DEFAULT;
       for (int i = firstIndex; i < lastIndexExclusive; i++) {
         // Skip puts that were determined to be invalid during preprocessing
@@ -3389,7 +3400,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         // 1) If the op is in replay mode, FSWALEntry#stampRegionSequenceId won't stamp sequence id.
         // 2) If no WAL, FSWALEntry won't be used
         // we use durability of the original mutation for the mutation passed by CP.
-        boolean updateSeqId = replay || batchOp.getMutation(i).getDurability() == Durability.SKIP_WAL;
+        boolean updateSeqId = replay || batchOp.getMutation(i).getDurability() == Durability.SKIP_WAL || mvccPreAssign;
         if (updateSeqId) {
           this.updateSequenceId(familyMaps[i].values(),
             replay? batchOp.getReplaySequenceId(): writeEntry.getWriteNumber());
@@ -3685,7 +3696,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         boolean valueIsNull = comparator.getValue() == null || comparator.getValue().length == 0;
         boolean matches = false;
         long cellTs = 0;
-        if (result.size() == 0 && valueIsNull) {
+        if (result.isEmpty() && valueIsNull) {
           matches = true;
         } else if (result.size() > 0 && result.get(0).getValueLength() == 0 && valueIsNull) {
           matches = true;
@@ -6879,112 +6890,6 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
           row, offset, length) <= 0)) &&
         ((info.getEndKey().length == 0) ||
           (Bytes.compareTo(info.getEndKey(), 0, info.getEndKey().length, row, offset, length) > 0));
-  }
-
-  /**
-   * Merge two HRegions.  The regions must be adjacent and must not overlap.
-   *
-   * @return new merged HRegion
-   * @throws IOException
-   */
-  public static HRegion mergeAdjacent(final HRegion srcA, final HRegion srcB)
-  throws IOException {
-    HRegion a = srcA;
-    HRegion b = srcB;
-
-    // Make sure that srcA comes first; important for key-ordering during
-    // write of the merged file.
-    if (srcA.getRegionInfo().getStartKey() == null) {
-      if (srcB.getRegionInfo().getStartKey() == null) {
-        throw new IOException("Cannot merge two regions with null start key");
-      }
-      // A's start key is null but B's isn't. Assume A comes before B
-    } else if ((srcB.getRegionInfo().getStartKey() == null) ||
-      (Bytes.compareTo(srcA.getRegionInfo().getStartKey(),
-        srcB.getRegionInfo().getStartKey()) > 0)) {
-      a = srcB;
-      b = srcA;
-    }
-
-    if (!(Bytes.compareTo(a.getRegionInfo().getEndKey(),
-        b.getRegionInfo().getStartKey()) == 0)) {
-      throw new IOException("Cannot merge non-adjacent regions");
-    }
-    return merge(a, b);
-  }
-
-  /**
-   * Merge two regions whether they are adjacent or not.
-   *
-   * @param a region a
-   * @param b region b
-   * @return new merged region
-   * @throws IOException
-   */
-  public static HRegion merge(final HRegion a, final HRegion b) throws IOException {
-    if (!a.getRegionInfo().getTable().equals(b.getRegionInfo().getTable())) {
-      throw new IOException("Regions do not belong to the same table");
-    }
-
-    FileSystem fs = a.getRegionFileSystem().getFileSystem();
-    // Make sure each region's cache is empty
-    a.flush(true);
-    b.flush(true);
-
-    // Compact each region so we only have one store file per family
-    a.compact(true);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Files for region: " + a);
-      a.getRegionFileSystem().logFileSystemState(LOG);
-    }
-    b.compact(true);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Files for region: " + b);
-      b.getRegionFileSystem().logFileSystemState(LOG);
-    }
-
-    RegionMergeTransactionImpl rmt = new RegionMergeTransactionImpl(a, b, true);
-    if (!rmt.prepare(null)) {
-      throw new IOException("Unable to merge regions " + a + " and " + b);
-    }
-    HRegionInfo mergedRegionInfo = rmt.getMergedRegionInfo();
-    LOG.info("starting merge of regions: " + a + " and " + b
-        + " into new region " + mergedRegionInfo.getRegionNameAsString()
-        + " with start key <"
-        + Bytes.toStringBinary(mergedRegionInfo.getStartKey())
-        + "> and end key <"
-        + Bytes.toStringBinary(mergedRegionInfo.getEndKey()) + ">");
-    HRegion dstRegion;
-    try {
-      dstRegion = (HRegion)rmt.execute(null, null);
-    } catch (IOException ioe) {
-      rmt.rollback(null, null);
-      throw new IOException("Failed merging region " + a + " and " + b
-          + ", and successfully rolled back");
-    }
-    dstRegion.compact(true);
-
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Files for new region");
-      dstRegion.getRegionFileSystem().logFileSystemState(LOG);
-    }
-
-    // clear the compacted files if any
-    for (Store s : dstRegion.getStores()) {
-      s.closeAndArchiveCompactedFiles();
-    }
-    if (dstRegion.getRegionFileSystem().hasReferences(dstRegion.getTableDesc())) {
-      throw new IOException("Merged region " + dstRegion
-          + " still has references after the compaction, is compaction canceled?");
-    }
-
-    // Archiving the 'A' region
-    HFileArchiver.archiveRegion(a.getBaseConf(), fs, a.getRegionInfo());
-    // Archiving the 'B' region
-    HFileArchiver.archiveRegion(b.getBaseConf(), fs, b.getRegionInfo());
-
-    LOG.info("merge completed. New region is " + dstRegion);
-    return dstRegion;
   }
 
   @Override

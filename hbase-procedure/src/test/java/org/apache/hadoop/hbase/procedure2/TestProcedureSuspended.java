@@ -18,6 +18,8 @@
 
 package org.apache.hadoop.hbase.procedure2;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -28,19 +30,15 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.HBaseCommonTestingUtility;
-import org.apache.hadoop.hbase.procedure2.store.ProcedureStore;
 import org.apache.hadoop.hbase.procedure2.store.NoopProcedureStore;
-import org.apache.hadoop.hbase.testclassification.SmallTests;
+import org.apache.hadoop.hbase.procedure2.store.ProcedureStore;
 import org.apache.hadoop.hbase.testclassification.MasterTests;
+import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Threads;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @Category({MasterTests.class, SmallTests.class})
 public class TestProcedureSuspended {
@@ -214,11 +212,12 @@ public class TestProcedureSuspended {
     }
 
     @Override
-    protected boolean acquireLock(final TestProcEnv env) {
+    protected LockState acquireLock(final TestProcEnv env) {
       if ((hasLock = lock.compareAndSet(false, true))) {
         LOG.info("ACQUIRE LOCK " + this + " " + (hasLock));
+        return LockState.LOCK_ACQUIRED;
       }
-      return hasLock;
+      return LockState.LOCK_YIELD_WAIT;
     }
 
     @Override

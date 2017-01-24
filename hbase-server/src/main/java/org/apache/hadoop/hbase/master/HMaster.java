@@ -109,7 +109,6 @@ import org.apache.hadoop.hbase.master.procedure.CreateTableProcedure;
 import org.apache.hadoop.hbase.master.procedure.DeleteColumnFamilyProcedure;
 import org.apache.hadoop.hbase.master.procedure.DeleteTableProcedure;
 import org.apache.hadoop.hbase.master.procedure.DisableTableProcedure;
-import org.apache.hadoop.hbase.master.procedure.DispatchMergingRegionsProcedure;
 import org.apache.hadoop.hbase.master.procedure.EnableTableProcedure;
 import org.apache.hadoop.hbase.master.procedure.MasterProcedureConstants;
 import org.apache.hadoop.hbase.master.procedure.MasterProcedureEnv;
@@ -646,8 +645,7 @@ public class HMaster extends HRegionServer implements MasterServices {
     this.splitOrMergeTracker.start();
 
     this.assignmentManager = new AssignmentManager(this, serverManager,
-      this.balancer, this.service, this.metricsMaster,
-      this.tableLockManager, tableStateManager);
+      this.balancer, this.service, this.metricsMaster, tableStateManager);
 
     this.replicationManager = new ReplicationManager(conf, zooKeeper, this);
 
@@ -733,8 +731,6 @@ public class HMaster extends HRegionServer implements MasterServices {
 
     this.serverManager = createServerManager(this);
 
-    // Invalidate all write locks held previously
-    this.tableLockManager.reapWriteLocks();
     this.tableStateManager = new TableStateManager(this);
 
     status.setStatus("Initializing ZK system trackers");
@@ -1091,7 +1087,7 @@ public class HMaster extends HRegionServer implements MasterServices {
         new MasterProcedureEnv.WALStoreLeaseRecovery(this));
     procedureStore.registerListener(new MasterProcedureEnv.MasterProcedureStoreListener(this));
     procedureExecutor = new ProcedureExecutor(conf, procEnv, procedureStore,
-        procEnv.getProcedureQueue());
+        procEnv.getProcedureScheduler());
     configurationManager.registerObserver(procEnv);
 
     final int numThreads = conf.getInt(MasterProcedureConstants.MASTER_PROCEDURE_THREADS,
@@ -1416,55 +1412,6 @@ public class HMaster extends HRegionServer implements MasterServices {
    */
   public void setCatalogJanitorEnabled(final boolean b) {
     this.catalogJanitorChore.setEnabled(b);
-  }
-
-  @Override
-  public long dispatchMergingRegions(
-      final HRegionInfo regionInfoA,
-      final HRegionInfo regionInfoB,
-      final boolean forcible,
-      final long nonceGroup,
-      final long nonce) throws IOException {
-    checkInitialized();
-
-    TableName tableName = regionInfoA.getTable();
-    if (tableName == null || regionInfoB.getTable() == null) {
-      throw new UnknownRegionException ("Can't merge regions without table associated");
-    }
-
-    if (!tableName.equals(regionInfoB.getTable())) {
-      throw new IOException ("Cannot merge regions from two different tables");
-    }
-
-    if (regionInfoA.compareTo(regionInfoB) == 0) {
-      throw new MergeRegionException(
-        "Cannot merge a region to itself " + regionInfoA + ", " + regionInfoB);
-    }
-
-    HRegionInfo [] regionsToMerge = new HRegionInfo[2];
-    regionsToMerge [0] = regionInfoA;
-    regionsToMerge [1] = regionInfoB;
-
-    return MasterProcedureUtil.submitProcedure(
-        new MasterProcedureUtil.NonceProcedureRunnable(this, nonceGroup, nonce) {
-      @Override
-      protected void run() throws IOException {
-        getMaster().getMasterCoprocessorHost().preDispatchMerge(regionInfoA, regionInfoB);
-
-        LOG.info(getClientIdAuditPrefix() + " Merge regions "
-            + regionInfoA.getEncodedName() + " and " + regionInfoB.getEncodedName());
-
-        submitProcedure(new DispatchMergingRegionsProcedure(procedureExecutor.getEnvironment(),
-            tableName, regionsToMerge, forcible));
-
-        getMaster().getMasterCoprocessorHost().postDispatchMerge(regionInfoA, regionInfoB);
-      }
-
-      @Override
-      protected String getDescription() {
-        return "DisableTableProcedure";
-      }
-    });
   }
 
   @Override
@@ -2955,7 +2902,7 @@ public class HMaster extends HRegionServer implements MasterServices {
       final String namespace, final String regex, final List<TableName> tableNameList,
       final boolean includeSysTables)
   throws IOException {
-    if (tableNameList == null || tableNameList.size() == 0) {
+    if (tableNameList == null || tableNameList.isEmpty()) {
       // request for all TableDescriptors
       Collection<HTableDescriptor> allHtds;
       if (namespace != null && namespace.length() > 0) {
@@ -3080,8 +3027,7 @@ public class HMaster extends HRegionServer implements MasterServices {
    */
   public void requestMobCompaction(TableName tableName,
     List<HColumnDescriptor> columns, boolean allFiles) throws IOException {
-    mobCompactThread.requestMobCompaction(conf, fs, tableName, columns,
-      tableLockManager, allFiles);
+    mobCompactThread.requestMobCompaction(conf, fs, tableName, columns, allFiles);
   }
 
   /**

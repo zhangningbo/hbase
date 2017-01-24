@@ -310,23 +310,8 @@ public class MockNoopMasterServices implements MasterServices, Server {
   }
 
   @Override
-  public TableLockManager getTableLockManager() {
-    return null;
-  }
-
-  @Override
   public TableStateManager getTableStateManager() {
     return null;
-  }
-
-  @Override
-  public long dispatchMergingRegions(
-      final HRegionInfo region_a,
-      final HRegionInfo region_b,
-      final boolean forcible,
-      final long nonceGroup,
-      final long nonce) throws IOException {
-    return -1;
   }
 
   @Override

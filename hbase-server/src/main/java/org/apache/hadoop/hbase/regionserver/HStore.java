@@ -53,14 +53,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellComparator;
-import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.CompoundConfiguration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.backup.FailedArchiveException;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.client.Scan;
@@ -259,10 +252,10 @@ public class HStore implements Store {
     // to clone it?
     scanInfo = new ScanInfo(conf, family, ttl, timeToPurgeDeletes, this.comparator);
     String className = conf.get(MEMSTORE_CLASS_NAME, DefaultMemStore.class.getName());
-    HColumnDescriptor.MemoryCompaction inMemoryCompaction = family.getInMemoryCompaction();
+    MemoryCompactionPolicy inMemoryCompaction = family.getInMemoryCompaction();
     if(inMemoryCompaction == null) {
-      inMemoryCompaction = HColumnDescriptor.MemoryCompaction.valueOf(conf.get
-          (CompactingMemStore.COMPACTING_MEMSTORE_TYPE_KEY,
+      inMemoryCompaction = MemoryCompactionPolicy.valueOf(
+          conf.get(CompactingMemStore.COMPACTING_MEMSTORE_TYPE_KEY,
               CompactingMemStore.COMPACTING_MEMSTORE_TYPE_DEFAULT));
     }
     switch (inMemoryCompaction) {
@@ -522,7 +515,7 @@ public class HStore implements Store {
   }
 
   private List<StoreFile> openStoreFiles(Collection<StoreFileInfo> files) throws IOException {
-    if (files == null || files.size() == 0) {
+    if (files == null || files.isEmpty()) {
       return new ArrayList<StoreFile>();
     }
     // initialize the thread pool for opening store files in parallel..
@@ -1800,7 +1793,6 @@ public class HStore implements Store {
   @VisibleForTesting
   protected void completeCompaction(final Collection<StoreFile> compactedFiles)
     throws IOException {
-    LOG.debug("Completing compaction...");
     this.storeSize = 0L;
     this.totalUncompressedBytes = 0L;
     for (StoreFile hsf : this.storeEngine.getStoreFileManager().getStorefiles()) {
@@ -2510,8 +2502,8 @@ public class HStore implements Store {
     }
   }
 
-  public void finalizeFlush() {
-    memstore.finalizeFlush();
+  public Long preFlushSeqIDEstimation() {
+    return memstore.preFlushSeqIDEstimation();
   }
 
   @Override

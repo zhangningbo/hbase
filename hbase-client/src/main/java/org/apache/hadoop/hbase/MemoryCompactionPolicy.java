@@ -1,5 +1,4 @@
 /**
- * Copyright The Apache Software Foundation
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -20,28 +19,30 @@
 package org.apache.hadoop.hbase;
 
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.classification.InterfaceStability;
 
 /**
- * An interface for a distributed reader-writer lock.
+ * Enum describing all possible memory compaction policies
  */
-@InterfaceAudience.Private
-public interface InterProcessReadWriteLock {
-
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
+public enum MemoryCompactionPolicy {
   /**
-   * Obtain a read lock containing given metadata.
-   * @param metadata Serialized lock metadata (this may contain information
-   *                 such as the process owning the lock or the purpose for
-   *                 which the lock was acquired).
-   * @return An instantiated InterProcessLock instance
+   * No memory compaction, when size threshold is exceeded data is flushed to disk
    */
-  InterProcessLock readLock(byte[] metadata);
-
+  NONE,
   /**
-   * Obtain a write lock containing given metadata.
-   * @param metadata Serialized lock metadata (this may contain information
-   *                 such as the process owning the lock or the purpose for
-   *                 which the lock was acquired).
-   * @return An instantiated InterProcessLock instance
+   * Basic policy applies optimizations which modify the index to a more compacted representation.
+   * This is beneficial in all access patterns. The smaller the cells are the greater the
+   * benefit of this policy.
+   * This is the default policy.
    */
-  InterProcessLock writeLock(byte[] metadata);
+  BASIC,
+  /**
+   * In addition to compacting the index representation as the basic policy, eager policy
+   * eliminates duplication while the data is still in memory (much like the
+   * on-disk compaction does after the data is flushed to disk). This policy is most useful for
+   * applications with high data churn or small working sets.
+   */
+  EAGER
 }

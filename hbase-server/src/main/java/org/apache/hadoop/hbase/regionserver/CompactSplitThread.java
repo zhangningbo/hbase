@@ -80,7 +80,7 @@ public class CompactSplitThread implements CompactionRequestor, PropagatingConfi
   public static final String REGION_SERVER_REGION_SPLIT_LIMIT =
       "hbase.regionserver.regionSplitLimit";
   public static final int DEFAULT_REGION_SERVER_REGION_SPLIT_LIMIT= 1000;
-  
+
   private final HRegionServer server;
   private final Configuration conf;
 
@@ -215,20 +215,6 @@ public class CompactSplitThread implements CompactionRequestor, PropagatingConfi
     }
 
     return queueLists.toString();
-  }
-
-  public synchronized void requestRegionsMerge(final Region a,
-      final Region b, final boolean forcible, long masterSystemTime, User user) {
-    try {
-      mergePool.execute(new RegionMergeRequest(a, b, this.server, forcible, masterSystemTime,user));
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Region merge requested for " + a + "," + b + ", forcible="
-            + forcible + ".  " + this);
-      }
-    } catch (RejectedExecutionException ree) {
-      LOG.warn("Could not execute merge for " + a + "," + b + ", forcible="
-          + forcible, ree);
-    }
   }
 
   public synchronized boolean requestSplit(final Region r) {

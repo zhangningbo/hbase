@@ -327,9 +327,15 @@ class ConnectionImplementation implements ClusterConnection, Closeable {
   }
 
   @Override
-  public Table getTable(TableName tableName, ExecutorService pool) throws IOException {
-    return new HTable(tableName, this, connectionConfig,
-      rpcCallerFactory, rpcControllerFactory, pool);
+  public TableBuilder getTableBuilder(TableName tableName, ExecutorService pool) {
+    return new TableBuilderBase(tableName, connectionConfig) {
+
+      @Override
+      public Table build() {
+        return new HTable(ConnectionImplementation.this, this, rpcCallerFactory,
+            rpcControllerFactory, pool);
+      }
+    };
   }
 
   @Override
@@ -1309,13 +1315,6 @@ class ConnectionImplementation implements ClusterConnection, Closeable {
       public MasterProtos.MoveRegionResponse moveRegion(RpcController controller,
           MasterProtos.MoveRegionRequest request) throws ServiceException {
         return stub.moveRegion(controller, request);
-      }
-
-      @Override
-      public MasterProtos.DispatchMergingRegionsResponse dispatchMergingRegions(
-          RpcController controller, MasterProtos.DispatchMergingRegionsRequest request)
-          throws ServiceException {
-        return stub.dispatchMergingRegions(controller, request);
       }
 
       @Override

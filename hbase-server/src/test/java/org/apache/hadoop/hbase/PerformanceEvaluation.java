@@ -631,8 +631,8 @@ public class PerformanceEvaluation extends Configured implements Tool {
     int columns = 1;
     int caching = 30;
     boolean addColumns = true;
-    HColumnDescriptor.MemoryCompaction inMemoryCompaction =
-        HColumnDescriptor.MemoryCompaction.valueOf(
+    MemoryCompactionPolicy inMemoryCompaction =
+        MemoryCompactionPolicy.valueOf(
             CompactingMemStore.COMPACTING_MEMSTORE_TYPE_DEFAULT);
 
     public TestOptions() {}
@@ -978,11 +978,11 @@ public class PerformanceEvaluation extends Configured implements Tool {
       this.addColumns = addColumns;
     }
 
-    public void setInMemoryCompaction(HColumnDescriptor.MemoryCompaction inMemoryCompaction) {
+    public void setInMemoryCompaction(MemoryCompactionPolicy inMemoryCompaction) {
       this.inMemoryCompaction = inMemoryCompaction;
     }
 
-    public HColumnDescriptor.MemoryCompaction getInMemoryCompaction() {
+    public MemoryCompactionPolicy getInMemoryCompaction() {
       return this.inMemoryCompaction;
     }
   }
@@ -2221,6 +2221,12 @@ public class PerformanceEvaluation extends Configured implements Tool {
       // must run at least 1 client
       if (opts.numClientThreads <= 0) {
         throw new IllegalArgumentException("Number of clients must be > 0");
+      }
+
+      // cmdName should not be null, print help and exit
+      if (opts.cmdName == null) {
+        printUsage();
+        return errCode;
       }
 
       Class<? extends Test> cmdClass = determineCommandClass(opts.cmdName);
